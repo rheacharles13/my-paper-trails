@@ -1,0 +1,2313 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>My Paper Trail</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style id="page-style">
+  :root{
+    --paper:#FFFFFF;
+    --rule:#D3ECD8;
+    --ground:#F2F4F1;
+    --ink:#20241F;
+    --ink-soft:#666E67;
+    --accent:#2E7D4F;
+    --accent-dark:#215C39;
+    --accent-bg:#EAF5EE;
+    --accent-2:#4F9468;
+    --accent-3:#8FBF9B;
+    --border:#DCE3DD;
+    --card-bg:#FFFFFF;
+    --danger:#C0392B;
+    --danger-bg:#FCEBE9;
+    --shadow:rgba(30,40,32,0.08);
+    --focus:#2E7D4F;
+    color-scheme: light;
+  }
+
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  button, input, select, textarea{ color:inherit; }
+  body{
+    background:var(--ground);
+    color:var(--ink);
+    font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    min-height:100vh;
+    display:flex;
+    justify-content:center;
+    -webkit-text-size-adjust:100%;
+  }
+  .page-shell{
+    width:100%;
+    max-width:460px;
+    min-height:100vh;
+    background:var(--paper);
+    background-image:repeating-linear-gradient(180deg, transparent 0 27px, var(--rule) 28px);
+    box-shadow:0 0 1px var(--border);
+    position:relative;
+    padding:18px 18px 48px;
+    display:flex;
+    flex-direction:column;
+  }
+  a{color:var(--accent);}
+  h1,h2,h3{
+    font-weight:700;
+    margin:0 0 4px;
+    text-wrap:balance;
+    color:var(--ink);
+  }
+  p{margin:0 0 10px; color:var(--ink-soft); line-height:1.5;}
+  button{font-family:inherit;}
+  .view{display:none;}
+  .view.active{display:block; animation:fadein .2s ease;}
+  @media (prefers-reduced-motion: reduce){ .view.active{animation:none;} }
+  @keyframes fadein{ from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:none;} }
+
+  /* ---- divider ---- */
+  .trace{ width:100%; height:2px; margin:14px 0; border:none; background:var(--border); }
+
+  /* ---- header / brand ---- */
+  .brand{ display:flex; align-items:center; gap:10px; padding:6px 4px 2px; }
+  .brand-mark{ width:30px; height:30px; flex:0 0 auto; color:var(--accent); }
+  .brand-text{ display:flex; flex-direction:column; }
+  .brand-text .name{ font-size:1.3rem; font-weight:700; line-height:1; }
+  .brand-text .tag{ font-size:0.72rem; color:var(--ink-soft); }
+
+  .topbar{ display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap; }
+  .icon-btn{
+    background:none; border:none; color:var(--ink-soft); cursor:pointer;
+    padding:8px; border-radius:6px; display:flex; align-items:center; gap:6px;
+    font-size:0.85rem;
+  }
+  .icon-btn:hover{ color:var(--accent); background:var(--accent-bg); }
+  .icon-btn:active{ background:var(--accent-bg); color:var(--accent-dark); }
+  .icon-btn:focus-visible, a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible{
+    outline:2px solid var(--focus); outline-offset:2px; border-radius:4px;
+  }
+  .topbar-actions{ display:flex; align-items:center; gap:2px; }
+
+  /* ---- 3-step wizard nav ---- */
+  .step-nav{ display:flex; gap:6px; margin:14px 0 16px; }
+  .step-tab{
+    flex:1; text-align:center; padding:9px 4px; border-radius:8px; border:1.5px solid var(--border);
+    background:#fff; cursor:pointer; font-size:0.74rem; color:var(--ink-soft); line-height:1.3;
+  }
+  .step-tab .dot{ display:block; width:7px; height:7px; border-radius:50%; background:var(--border); margin:0 auto 5px; }
+  .step-tab:hover{ border-color:var(--accent-3); background:var(--accent-bg); }
+  .step-tab:active{ background:var(--accent-bg); }
+  .step-tab.current{ border-color:var(--accent); color:var(--accent-dark); font-weight:700; background:var(--accent-bg); }
+  .step-tab.current .dot{ background:var(--accent); }
+  .step-tab.done .dot{ background:var(--accent-2); }
+  .step-tab.done{ color:var(--ink); }
+
+  /* ---- buttons ---- */
+  .btn{
+    display:inline-flex; align-items:center; justify-content:center; gap:8px;
+    border:2px solid var(--accent-dark); border-radius:9px; padding:13px 20px; font-size:1rem; font-weight:700;
+    cursor:pointer; min-height:48px; width:100%;
+    background:var(--accent-bg); color:var(--accent-dark); transition:background .12s, transform .06s;
+  }
+  .btn:hover{ background:var(--accent-3); }
+  .btn:active{ background:var(--accent-2); transform:scale(0.98); }
+  .btn.secondary{ background:#fff; color:var(--ink); border:1.5px solid var(--border); }
+  .btn.secondary:hover{ background:var(--ground); border-color:var(--ink-soft); }
+  .btn.secondary:active{ background:var(--border); }
+  .btn.ghost{ background:transparent; color:var(--ink-soft); box-shadow:none; padding:10px; font-weight:600; border-color:transparent; }
+  .btn.ghost:hover{ background:var(--ground); color:var(--ink); }
+  .btn.ghost:active{ background:var(--border); }
+  .btn[disabled]{ opacity:0.45; cursor:not-allowed; }
+  .btn-row{ display:flex; gap:10px; margin-top:14px; }
+  .btn-gallery{
+    display:flex; align-items:center; justify-content:center; gap:8px; width:100%;
+    margin:14px 0 22px; padding:14px 18px; border-radius:10px; border:2px solid var(--accent-dark);
+    background:var(--accent); color:#fff; font-weight:700; font-size:1rem; cursor:pointer; min-height:48px;
+  }
+  .btn-gallery svg{ width:20px; height:20px; flex:0 0 auto; }
+  .btn-gallery:hover{ background:var(--accent-dark); }
+  .btn-gallery:active{ transform:scale(0.98); }
+
+  /* ---- inputs ---- */
+  label{ display:block; font-weight:700; font-size:0.92rem; margin-bottom:6px; color:var(--ink); }
+  .hint{ font-size:0.78rem; color:var(--ink-soft); margin-top:-4px; margin-bottom:8px; }
+  input[type="text"], textarea, select{
+    width:100%; font-size:1rem; font-family:inherit; color:var(--ink);
+    background:#fff; border:1.5px solid var(--border); border-radius:8px;
+    padding:11px 12px; margin-bottom:14px;
+  }
+  input[type="text"]:hover, textarea:hover, select:hover{ border-color:var(--accent-3); }
+  textarea{ resize:vertical; min-height:64px; }
+  .field{ margin-bottom:2px; }
+
+  /* ---- cards ---- */
+  .card{
+    background:var(--card-bg); border:1.5px solid var(--border); border-radius:10px; padding:16px;
+    margin-bottom:16px; position:relative;
+  }
+  .section-head{ display:flex; align-items:center; gap:10px; margin-bottom:10px; }
+  .section-head svg{ width:24px; height:24px; flex:0 0 auto; color:var(--accent); }
+  .section-head h2{ font-size:1.1rem; }
+  .section-sub{ font-size:0.82rem; color:var(--ink-soft); margin:-6px 0 14px; }
+  .reflections-block{ background:var(--accent-bg); border:1px solid var(--accent-3); border-radius:10px; padding:16px; margin-bottom:14px; }
+  .reflections-block textarea{ background:#fff; border-color:var(--accent-3); }
+
+  /* ---- confidence dots (bigger, tappable) ---- */
+  .conf-row{ display:flex; gap:9px; justify-content:space-between; margin-bottom:6px; }
+  .conf-dot{
+    flex:1; aspect-ratio:1; border-radius:50%; border:1.5px solid var(--border);
+    background:#fff; cursor:pointer; display:flex; align-items:center; justify-content:center;
+    font-size:0.85rem; color:var(--ink-soft); font-weight:600;
+    max-width:44px; transition:.12s;
+  }
+  .conf-dot:hover{ border-color:var(--accent-3); background:var(--accent-bg); color:var(--accent-dark); }
+  .conf-dot:active{ transform:scale(0.94); }
+  .conf-dot.sel{ background:var(--accent-bg); border:2px solid var(--accent-dark); color:var(--accent-dark); font-weight:700; }
+  .conf-caption{ text-align:center; font-size:0.85rem; color:var(--accent-dark); font-weight:700; min-height:1.3em; margin-bottom:14px; }
+
+  /* ---- choice chips ---- */
+  .chip-group{ display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px; }
+  .chip{
+    border:1.5px solid var(--border); background:#fff; color:var(--ink);
+    border-radius:20px; padding:9px 14px; font-size:0.86rem; cursor:pointer; font-family:inherit;
+    transition:background .1s, border-color .1s, transform .06s;
+  }
+  .chip:hover{ border-color:var(--accent-3); background:var(--accent-bg); }
+  .chip:active{ background:var(--accent-3); transform:scale(0.97); }
+  .chip.sel{ background:var(--accent-bg); border:2px solid var(--accent-dark); color:var(--accent-dark); font-weight:700; }
+  .chip.sel:hover{ background:var(--accent-3); }
+  .chip.wide{ flex:1 1 100%; text-align:left; }
+
+  /* ---- optional project switch ---- */
+  .switch-row{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin:2px 0 16px; }
+  .switch-row .switch-label{ font-weight:700; font-size:0.92rem; color:var(--ink); margin:0; flex:1; }
+  .switch{
+    position:relative; width:44px; height:26px; border-radius:14px; border:1.5px solid var(--border);
+    background:#fff; cursor:pointer; flex:0 0 auto; padding:0;
+  }
+  .switch:hover{ border-color:var(--accent-3); }
+  .switch .switch-knob{
+    position:absolute; top:2px; left:2px; width:19px; height:19px; border-radius:50%;
+    background:var(--ink-soft); transition:transform .15s ease, background .15s ease;
+  }
+  .switch.on{ background:var(--accent-bg); border-color:var(--accent-dark); }
+  .switch.on .switch-knob{ background:var(--accent-dark); transform:translateX(18px); }
+
+  /* ---- photo uploader ---- */
+  .photo-slot{
+    border:1.5px dashed var(--border); border-radius:8px; background:var(--ground);
+    padding:14px; text-align:center; cursor:pointer; margin-bottom:12px; position:relative;
+  }
+  .photo-slot:hover{ border-color:var(--accent); background:var(--accent-bg); }
+  .photo-slot input{ position:absolute; inset:0; opacity:0; cursor:pointer; width:100%; height:100%; }
+  .photo-slot .ph-label{ font-size:0.85rem; color:var(--accent-dark); font-weight:700; }
+  .photo-slot .ph-sub{ font-size:0.72rem; color:var(--ink-soft); margin-top:2px; }
+  .photo-card-grid{ display:flex; flex-wrap:wrap; gap:8px; margin-bottom:8px; }
+  .photo-card{ position:relative; display:block; background:#fff; padding:6px; border:1.5px solid var(--border); border-radius:8px; width:104px; }
+  .photo-card img, .photo-card video{ display:block; width:100%; height:84px; object-fit:cover; border-radius:4px; background:#000; }
+  .photo-card .remove{
+    position:absolute; top:-9px; right:-9px; background:var(--danger); color:#fff; border:2px solid #fff;
+    width:26px; height:26px; border-radius:50%; cursor:pointer; font-size:0.9rem; line-height:1;
+  }
+  .photo-card .remove:hover{ background:#a4291b; }
+
+  /* ---- debug attempt block ---- */
+  .attempt{ border-left:3px solid var(--border); padding-left:12px; margin-bottom:16px; }
+  .attempt-head{ display:flex; justify-content:space-between; align-items:center; }
+  .attempt-head .lbl{ font-weight:700; font-size:0.85rem; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.03em; }
+  .project-label{ font-weight:700; font-size:0.85rem; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.03em; margin-bottom:8px; }
+  .remove-attempt{ background:none; border:none; color:var(--danger); font-size:0.78rem; cursor:pointer; padding:4px; border-radius:4px; }
+  .remove-attempt:hover{ background:var(--danger-bg); }
+
+  /* ---- week picker ---- */
+  .week-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:12px; margin-top:6px;}
+  .week-tile{
+    background:var(--card-bg); border:1.5px solid var(--border); border-radius:8px; padding:12px 10px;
+    text-align:left; cursor:pointer; position:relative; transition:border-color .1s, background .1s;
+    color:var(--ink);
+  }
+  .week-tile:hover{ border-color:var(--accent-3); background:var(--accent-bg); }
+  .week-tile:active{ background:var(--accent-3); }
+  .week-tile .wk-num{ font-size:0.72rem; color:var(--accent-dark); font-weight:700; }
+  .week-tile .wk-topic{ font-weight:700; font-size:0.9rem; margin-top:2px; line-height:1.25; color:var(--ink); }
+  .week-tile .wk-level{ font-size:0.65rem; text-transform:uppercase; letter-spacing:.04em; color:var(--ink-soft); margin-top:5px; }
+  .week-tile.done{ border-color:var(--accent); }
+  .week-tile .done-led{ position:absolute; top:10px; right:10px; width:9px; height:9px; border-radius:50%; background:var(--accent); }
+  .week-tile .note-led{ position:absolute; top:10px; right:10px; width:9px; height:9px; border-radius:50%; background:#C98A1E; }
+  .week-tile.done .note-led{ right:24px; }
+  .level-band{ height:3px; border-radius:2px; margin-top:8px; }
+  .level-band.Foundation{ background:var(--accent-3); }
+  .level-band.Advanced{ background:var(--accent-2); }
+  .level-band.Application{ background:var(--accent); }
+
+  .echo{
+    background:var(--accent-bg); border:1px solid var(--accent-3); border-radius:8px;
+    padding:10px 12px; font-size:0.82rem; color:var(--ink-soft); margin-bottom:14px;
+  }
+  .echo b{ color:var(--ink); }
+  .reflect-block + .reflect-block{ margin-top:14px; padding-top:14px; border-top:1px solid var(--accent-3); }
+  .reflect-list{ list-style:disc; margin:8px 0 0 18px; padding:0; max-height:220px; overflow-y:auto; }
+  .reflect-list li{ margin-bottom:6px; line-height:1.4; }
+  .reflect-list li b{ color:var(--ink); }
+
+  .note-card{
+    background:#FFF8EC; border:1px solid #E9C888; border-radius:8px; padding:10px 12px;
+    font-size:0.85rem; margin-bottom:10px;
+  }
+  .note-card .who{ font-weight:700; font-size:0.76rem; color:#8A6413; text-transform:uppercase; letter-spacing:.03em; margin-bottom:3px; }
+
+  .streak{ text-align:center; margin:20px 0; }
+  .streak .big{ font-size:2.4rem; font-weight:700; color:var(--accent); line-height:1; }
+  .streak .cap{ font-size:0.85rem; color:var(--ink-soft); }
+
+  footer.mini{ text-align:center; margin-top:auto; padding-top:22px; }
+  footer.mini a{ font-size:0.76rem; color:var(--ink-soft); text-decoration:underline; cursor:pointer; }
+  footer.mini a:hover{ color:var(--accent); }
+
+  .saved-names{ display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px; }
+
+  .toast{
+    position:fixed; left:50%; bottom:22px; transform:translateX(-50%); background:var(--ink); color:#fff;
+    padding:10px 18px; border-radius:20px; font-size:0.85rem; box-shadow:0 4px 14px var(--shadow); z-index:50;
+    max-width:90vw;
+  }
+
+  /* ---- educator dashboard ---- */
+  .stat-grid{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:16px; }
+  .stat-card{ background:var(--card-bg); border:1.5px solid var(--border); border-radius:8px; padding:12px; text-align:center; }
+  .stat-card .n{ font-size:1.5rem; font-weight:700; color:var(--accent); font-variant-numeric:tabular-nums; }
+  .stat-card .l{ font-size:0.7rem; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.03em; }
+  .filter-row{ display:flex; gap:8px; margin-bottom:14px; }
+  .filter-row select{ margin-bottom:0; }
+  .entry-row{ background:var(--card-bg); border:1.5px solid var(--border); border-radius:8px; padding:12px; margin-bottom:10px; }
+  .entry-row .top{ display:flex; justify-content:space-between; align-items:baseline; margin-bottom:4px; }
+  .entry-row .who{ font-weight:700; }
+  .entry-row .when{ font-size:0.72rem; color:var(--ink-soft); }
+  .entry-row .thumbs{ display:flex; gap:6px; margin-top:8px; flex-wrap:wrap; }
+  .entry-row .thumbs img, .entry-row .thumbs video{ width:52px; height:52px; object-fit:cover; border-radius:4px; border:1px solid var(--border); background:#000; cursor:zoom-in; }
+  .bar-row{ display:flex; align-items:center; gap:8px; margin-bottom:6px; font-size:0.78rem;}
+  .bar-row .lbl{ width:70px; flex:0 0 auto; color:var(--ink-soft); }
+  .bar-track{ flex:1; height:8px; background:var(--ground); border-radius:4px; overflow:hidden; }
+  .bar-fill{ height:100%; background:var(--accent); }
+  .bar-row .val{ font-size:0.72rem; width:26px; text-align:right; }
+  .empty-note{ text-align:center; color:var(--ink-soft); font-size:0.86rem; padding:30px 10px; }
+  .gate-box{ max-width:320px; margin:60px auto; text-align:center; }
+
+  /* ---- entry detail (educator view) ---- */
+  .entry-detail{ margin-top:10px; padding-top:10px; border-top:1px solid var(--border); }
+  .detail-block{ margin-bottom:12px; }
+  .detail-block-head{ font-weight:700; font-size:0.8rem; text-transform:uppercase; letter-spacing:.03em; color:var(--ink-soft); margin-bottom:6px; }
+  .detail-item{ font-size:0.86rem; margin-bottom:8px; }
+  .detail-photo{ display:block; width:120px; border-radius:6px; border:1px solid var(--border); margin-top:6px; }
+  img.detail-photo{ cursor:zoom-in; }
+  .entry-row textarea{ margin-top:6px; }
+
+  /* ---- class gallery ---- */
+  .gallery-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:10px; }
+  .gallery-item{ position:relative; margin:0; border:1.5px solid var(--border); border-radius:8px; overflow:hidden; background:#fff; }
+  .gallery-item img, .gallery-item video{ display:block; width:100%; aspect-ratio:1; object-fit:cover; background:#000; }
+  .gallery-item img{ cursor:zoom-in; }
+  .gallery-cap{ font-size:0.7rem; color:var(--ink-soft); padding:5px 6px; background:#fff; }
+  .gallery-item:hover .gallery-cap{ color:var(--accent-dark); font-weight:700; }
+  .lightbox-overlay{ position:fixed; inset:0; background:rgba(10,14,10,0.9); display:flex; flex-direction:column; align-items:center; justify-content:center; padding:28px 16px; z-index:200; }
+  .lightbox-overlay[hidden]{ display:none; }
+  .lightbox-body{ display:flex; align-items:center; justify-content:center; max-width:92vw; max-height:80vh; }
+  .lightbox-body img, .lightbox-body video{ max-width:92vw; max-height:80vh; border-radius:10px; box-shadow:0 10px 40px rgba(0,0,0,0.5); }
+  .lightbox-cap{ color:#fff; margin-top:12px; font-size:0.85rem; text-align:center; max-width:90vw; }
+  .lightbox-actions{ display:flex; gap:10px; margin-top:14px; }
+  .lightbox-download{ display:inline-flex; align-items:center; gap:6px; padding:8px 16px; border-radius:20px; border:none; background:rgba(255,255,255,0.15); color:#fff; font-size:0.82rem; font-weight:600; cursor:pointer; }
+  .lightbox-download:hover{ background:rgba(255,255,255,0.28); }
+  .lightbox-close{ position:absolute; top:16px; right:18px; width:38px; height:38px; border-radius:50%; border:none; background:rgba(255,255,255,0.15); color:#fff; font-size:1.4rem; line-height:1; cursor:pointer; }
+  .lightbox-close:hover{ background:rgba(255,255,255,0.28); }
+
+  .center-spin{ text-align:center; padding:80px 10px; color:var(--ink-soft); font-size:0.9rem; }
+</style>
+</head>
+<body>
+<div class="page-shell" id="app"></div>
+<div class="lightbox-overlay" id="lightbox-overlay" hidden>
+  <button class="lightbox-close" id="lightbox-close" type="button" aria-label="Close">&times;</button>
+  <div class="lightbox-body" id="lightbox-body"></div>
+  <div class="lightbox-cap" id="lightbox-cap"></div>
+  <div class="lightbox-actions">
+    <button class="lightbox-download" id="lightbox-download" type="button">Download</button>
+  </div>
+</div>
+
+<script id="app-script">
+(function(){
+"use strict";
+
+/* ============================= SUPABASE CONFIG =============================
+   Fill these in from your Supabase project (Project Settings > API), then
+   re-host this file. See SETUP.md for the full walkthrough. */
+var SUPABASE_URL = "https://mktioefdyyiulawecyio.supabase.co";
+var SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1rdGlvZWZkeXlpdWxhd2VjeWlvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg5ODAzNjEsImV4cCI6MjEwNDU1NjM2MX0.b7g2VdRg1Drjbxs51q1XB2tMQN53h8dIsRnjVKhiwbM";
+var sb = (SUPABASE_URL.indexOf("YOUR_SUPABASE_URL")===0 || !window.supabase)
+  ? null
+  : window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+/* ============================= DATA ============================= */
+var CURRICULUM = [
+  {week:1, level:"Foundation", topic:"Conductive & Insulative Materials", blurb:"Circuits are systems of components that work together to make something happen.", activity:"Building a paper switch to see how conductive and insulative materials control the flow of electricity.", project:"Interactive pop-up card"},
+  {week:2, level:"Foundation", topic:"Series & Parallel Circuits", blurb:"Circuits are systems of components that work together to make something happen.", activity:"Building a DIY paper breadboard to compare how LEDs behave in series vs. parallel.", project:"Origami tree with three LEDs"},
+  {week:3, level:"Foundation", topic:"Ohm's Law", blurb:"Circuits are systems of components that work together to make something happen.", activity:"Building a paper potentiometer to see how resistance changes current and voltage.", project:"Mood light dial"},
+  {week:4, level:"Advanced", topic:"Transistor as a Switch", blurb:"Electronics process and respond to information through circuits.", activity:"Wiring a transistor switch that uses a photoresistor to trigger an LED.", project:"Night-light lantern"},
+  {week:5, level:"Advanced", topic:"Capacitor as Energy Storage", blurb:"Electronics process and respond to information through circuits.", activity:"Charging a capacitor and watching it briefly power a small motor.", project:"Spinning paper toy"},
+  {week:6, level:"Advanced", topic:"Logic Gates (AND, OR, NOT)", blurb:"Electronics process and respond to information through circuits.", activity:"Building AND, OR, and NOT circuits and testing how inputs control an LED.", project:"Interactive logic puzzle card"},
+  {week:7, level:"Advanced", topic:"Integrated Circuits 1", blurb:"Electronics process and respond to information through circuits.", activity:"Building a 3-stage LED control circuit with a 555 timer.", project:"Lightbox diorama"},
+  {week:8, level:"Advanced", topic:"Integrated Circuits 2", blurb:"Electronics process and respond to information through circuits.", activity:"Building an adjustable-speed flashing LED circuit with a 555 timer.", project:"Heartbeat badge"},
+  {week:9, level:"Application", topic:"More ICs & PCB Design Intro", blurb:"Microelectronics make everyday products smaller and more powerful.", activity:"Building a circuit around a student-chosen IC, like an audio amp or RGB LED driver.", project:"Student-selected project"},
+  {week:10, level:"Application", topic:"Final Review", blurb:"Microelectronics make everyday products smaller and more powerful.", activity:"Looking back on the whole workshop and sharing what you built.", project:null}
+];
+var DEBUG_REASONS = ["Loose or broken tape connection","Wired backwards (polarity)","Short circuit (tape touching itself)","Battery dead or weak","A part not fully connected","Not sure yet"];
+var CONF_LABELS = ["Still sparking","Getting warmer","Current flowing","Wired in","Fully charged!"];
+
+/* Week-specific "Reflections" questions, shown as their own card at the end
+   of the Design step (see renderDesignStep) for any week listed here. One
+   shared config drives freshDraft, normalizeDraft, the rendered question
+   card, its input wiring, the educator's expandable entry detail, and the
+   CSV export, so adding a week's reflections only means adding one entry
+   here instead of touching five separate places. `short` is the compact
+   bold label used in the educator detail view; `label` is the full
+   question shown to the student. */
+var REFLECTIONS_BY_WEEK = {
+  1: [
+    {field:"week1Materials", id:"f-week1-materials", short:"Conductive vs. insulating parts", label:"Which parts are made with conductive materials and which use insulating materials?", placeholder:"e.g. Copper tape carries the current; the paper and tape backing insulate it"},
+    {field:"week1SwitchType", id:"f-week1-switch-type", short:"Switch type", label:"The type of switch you designed or adapted (momentary or toggle).", placeholder:"e.g. I made a toggle switch with a folded paper tab"},
+    {field:"week1Interaction", id:"f-week1-interaction", short:"How the interaction works", label:"How the interaction works, including how and when the lights turn on.", placeholder:"e.g. Pressing the tab closes the circuit and the LED lights up"},
+    {field:"week1OutsideMaterials", id:"f-week1-outside-materials", short:"Outside materials used", label:"What outside materials did you integrate in your circuit (e.g. aluminum foil, coins)?", placeholder:"e.g. I used a penny as part of my switch"}
+  ],
+  2: [
+    {field:"week3CircuitChoice", id:"f-week3-circuit-choice", short:"Circuit type chosen", label:"Which circuit did you make: series or parallel? Why did you choose it?", placeholder:"e.g. I made a parallel circuit so each light could be controlled separately"},
+    {field:"week3RemoveLight", id:"f-week3-remove-light", short:"Removing one light", label:"What happens if you remove one light? Do the other lights still work? Why or why not?", placeholder:"e.g. In my parallel circuit the other lights stayed on"},
+    {field:"week3BiggerResistor", id:"f-week3-bigger-resistor", short:"Effect of a bigger resistor", label:"If you use a bigger resistor (like 1M Ohm) in your circuit, what do you think will happen to the brightness of the LEDs?", placeholder:"e.g. I think the LEDs would get much dimmer or turn off"}
+  ],
+  3: [
+    {field:"week2Explain", id:"f-week2-explain", short:"How the LED's brightness changes", label:"Explain how the LED changes brightness. What is happening inside the circuit?", placeholder:"e.g. More resistance means less current, so the LED gets dimmer"},
+    {field:"week2BatteryChange", id:"f-week2-battery-change", short:"Switching from a 9V to a 3V battery", label:"If you switch from a 9V battery to a 3V battery, what happens to the LED brightness? Why do you think that happens?", placeholder:"e.g. The LED gets dimmer because there’s less voltage pushing the current"}
+  ],
+  4: [
+    {field:"week4LedBrightness", id:"f-week4-led-brightness", short:"How the LED's brightness changes", label:"Explain how the LED changes brightness. What is happening inside the circuit?", placeholder:"e.g. The transistor acts like a switch, so how far I turn the dial changes how much current gets through to the LED"}
+  ]
+};
+var REFLECTIONS_ALL_FIELDS = Object.keys(REFLECTIONS_BY_WEEK).reduce(function(acc, w){
+  return acc.concat(REFLECTIONS_BY_WEEK[w].map(function(r){ return r.field; }));
+}, []);
+/* Shared camelCase draft-field <-> snake_case Postgres-column conversion
+   for every Reflections field, so adding a week's questions to
+   REFLECTIONS_BY_WEEK above is enough on its own — buildRow(), rowToEntry(),
+   and exportCsv() all derive their column names from it instead of each
+   needing their own hardcoded, easy-to-forget mapping. (A hardcoded mapping
+   that fell out of sync with the database is exactly what caused Week 2
+   submissions to silently fail to save in September 2026 — see the project
+   notes — so this generic version is deliberately harder to get wrong.) */
+function reflectionFieldToColumn(f){ return f.replace(/([a-z0-9])([A-Z])/g, "$1_$2").toLowerCase(); }
+function reflectionColumnToField(c){ return c.replace(/_([a-z0-9])/g, function(_, ch){ return ch.toUpperCase(); }); }
+
+/* ============================= LOCAL OFFLINE QUEUE ============================= */
+/* Failed writes (no network) queue here and retry automatically, so a
+   student mid-workshop on a flaky wifi connection never loses a page. */
+var QUEUE_KEY = "paperTrail_queue_v1";
+function loadQueue(){ try{ return JSON.parse(localStorage.getItem(QUEUE_KEY)) || []; }catch(e){ return []; } }
+function saveQueue(q){ try{ localStorage.setItem(QUEUE_KEY, JSON.stringify(q)); }catch(e){} }
+function queueEntry(d){
+  var q = loadQueue();
+  q = q.filter(function(x){ return !(x.userId===d.userId && x.week===d.week); });
+  q.push(d);
+  saveQueue(q);
+}
+
+/* ============================= HELPERS ============================= */
+function uid(){ return "e" + Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
+function qs(sel, root){ return (root||document).querySelector(sel); }
+function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]; }); }
+function fmtDate(iso){
+  if(!iso) return "";
+  var d = new Date(iso);
+  return d.toLocaleDateString(undefined,{month:"short",day:"numeric"}) + " · " + d.toLocaleTimeString(undefined,{hour:"numeric",minute:"2-digit"});
+}
+function curriculumFor(week){ return CURRICULUM.filter(function(c){return c.week===week;})[0]; }
+
+/* ============================= PHOTO COMPRESSION ============================= */
+function compressImage(file){
+  return new Promise(function(resolve, reject){
+    if(!file) return resolve(null);
+    var reader = new FileReader();
+    reader.onerror = function(){ reject(new Error("read failed")); };
+    reader.onload = function(){
+      var img = new Image();
+      img.onerror = function(){ reject(new Error("decode failed")); };
+      img.onload = function(){
+        var maxDim = 640;
+        var w = img.width, h = img.height;
+        var scale = Math.min(1, maxDim / Math.max(w,h));
+        var cw = Math.max(1, Math.round(w*scale)), ch = Math.max(1, Math.round(h*scale));
+        var canvas = document.createElement("canvas");
+        canvas.width = cw; canvas.height = ch;
+        var ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, cw, ch);
+        var quality = 0.7, out = canvas.toDataURL("image/jpeg", quality);
+        var tries = 0;
+        while(out.length > 220000 && tries < 6){
+          quality -= 0.1;
+          out = canvas.toDataURL("image/jpeg", Math.max(0.25, quality));
+          tries++;
+        }
+        resolve(out);
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+function dataUrlToBlob(dataUrl){ return fetch(dataUrl).then(function(r){ return r.blob(); }); }
+
+/* A submission can carry any number of photos and videos per slot (an
+   attempt, a design choice, or a final design) — each item is
+   {src, kind:"image"|"video"}. Videos aren't run through compressImage()
+   (there's no cheap client-side video re-encode), so keep clips short. */
+var MAX_VIDEO_BYTES = 25 * 1024 * 1024; // 25MB, per clip
+
+function readFileAsDataUrl(file){
+  return new Promise(function(resolve, reject){
+    var reader = new FileReader();
+    reader.onload = function(){ resolve(reader.result); };
+    reader.onerror = function(){ reject(new Error("read failed")); };
+    reader.readAsDataURL(file);
+  });
+}
+
+/* Turns one selected File into a {src, kind} media item — images are
+   compressed client-side same as before, videos are read as-is (oversized
+   clips are rejected up front so we don't choke on a multi-hundred-MB
+   data: URL). Rejects with a message meant to be shown to the student. */
+function fileToMediaItem(file){
+  var isVideo = file.type.indexOf("video")===0;
+  if(isVideo){
+    if(file.size > MAX_VIDEO_BYTES){
+      return Promise.reject(new Error("That video is over 25MB — trim it or pick a shorter clip."));
+    }
+    return readFileAsDataUrl(file).then(function(src){ return {src:src, kind:"video"}; });
+  }
+  return compressImage(file).then(function(src){ return {src:src, kind:"image"}; });
+}
+
+/* Uploads a locally-compressed media item (a data: URL) to Supabase Storage
+   and returns {src:<public URL>, kind}. Already-remote items pass through
+   untouched. On any failure (most commonly: offline) it falls back to
+   keeping the data: URL inline — the entry still saves, the file just isn't
+   a hosted URL yet; the next successful sync re-attempts the upload. */
+function uploadMediaIfNeeded(item){
+  if(!item || !item.src || item.src.indexOf("data:")!==0) return Promise.resolve(item);
+  if(!sb || !currentUser) return Promise.resolve(item);
+  var isVideo = item.kind==="video";
+  var ext = isVideo ? "webm" : "jpg";
+  var contentTypeMatch = /^data:([^;]+);/.exec(item.src);
+  var contentType = isVideo ? (contentTypeMatch ? contentTypeMatch[1] : "video/webm") : "image/jpeg";
+  return dataUrlToBlob(item.src).then(function(blob){
+    var path = currentUser.id + "/" + uid() + "." + ext;
+    return sb.storage.from("photos").upload(path, blob, {contentType:contentType, upsert:true}).then(function(up){
+      if(up.error) throw up.error;
+      var pub = sb.storage.from("photos").getPublicUrl(path);
+      return {src: pub.data.publicUrl, kind: item.kind};
+    });
+  }).catch(function(){ return item; });
+}
+function uploadMediaArray(arr){ return Promise.all((arr||[]).map(uploadMediaIfNeeded)); }
+function uploadAttemptMedia(att){
+  return uploadMediaArray(att.media).then(function(media){
+    return {worked:att.worked, reasons:att.reasons||[], note:att.note, media:media};
+  });
+}
+function uploadChoiceMedia(ch){
+  return uploadMediaArray(ch.media).then(function(media){
+    return {type:ch.type, note:ch.note, media:media};
+  });
+}
+
+/* ============================= APP STATE ============================= */
+var app = qs("#app");
+var currentUser = null;      // Supabase auth user object
+var currentProfile = null;   // {user_id, display_name}
+var currentStudent = "";     // display_name, mirrored for convenience
+var isEducatorAccount = false;
+var allEntries = [];         // every student's entries, app-shape (see rowToEntry)
+var myNotesMap = {};         // week -> {text, sentAt} for the signed-in student
+var eduNotesMap = {};        // "<user_id>__<week>" -> {text, sentAt} for educators
+
+var draft = null;          // in-progress entry object
+var currentWeek = null;
+var lastSubmitted = null;  // for the "done" screen
+var eduFilterWeek = "all";
+var eduFilterStudent = "all";
+var entryStep = 0; // 0 = Documentation, 1 = Debugging, 2 = Design
+var STEP_LABELS = ["Documentation","Debugging","Design"];
+var nameDraft = "";
+
+/* ============================= ICONS ============================= */
+var ICON_DOC = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l4 4v14a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/><path d="M15 3v4h4"/><path d="M8 12h8M8 15.5h8M8 8.5h4"/></svg>';
+var ICON_BUG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4l1.5 2h3L15 4"/><rect x="7" y="8" width="10" height="10" rx="4"/><path d="M3 12h4M17 12h4M5 17l3-2M19 17l-3-2M5 8l3 2M19 8l-3 2M12 8v10"/></svg>';
+var ICON_BULB = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-4 10.5c.7.7 1 1.3 1 2.5h6c0-1.2.3-1.8 1-2.5A6 6 0 0 0 12 3z"/></svg>';
+var ICON_CAM = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l1.5-2h7L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13.5" r="3.4"/></svg>';
+var ICON_GALLERY = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="8" rx="1.5"/><rect x="3" y="13" width="8" height="8" rx="1.5"/><rect x="13" y="13" width="8" height="8" rx="1.5"/></svg>';
+var galleryReturnView = "weeks"; // where "Back" from the gallery should land
+
+function traceSvg(){ return '<div class="trace" aria-hidden="true"></div>'; }
+
+/* ============================= RENDER: SHELL ============================= */
+function render(){
+  var view = getView();
+  var html = "";
+  if(view==="loading") html = renderLoading();
+  else if(view==="welcome") html = renderWelcome();
+  else if(view==="setup-name") html = renderSetupName();
+  else if(view==="weeks") html = renderWeeks();
+  else if(view==="entry") html = renderEntryView();
+  else if(view==="done") html = renderDone();
+  else if(view==="educator") html = renderEducator();
+  else if(view==="gallery") html = renderGallery();
+  app.innerHTML = html;
+  wireView(view);
+}
+
+var routerView = "loading";
+function getView(){ return routerView; }
+function goto(view){ routerView = view; window.scrollTo(0,0); render(); }
+
+/* ============================= LOADING ============================= */
+function renderLoading(){
+  return (
+    '<div class="brand">' +
+      '<svg class="brand-mark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-4 10.5c.7.7 1 1.3 1 2.5h6c0-1.2.3-1.8 1-2.5A6 6 0 0 0 12 3z"/></svg>' +
+      '<div class="brand-text"><span class="name">My Paper Trail</span><span class="tag">Circuits Journal</span></div>' +
+    '</div>' +
+    '<div class="center-spin">Loading…</div>'
+  );
+}
+
+/* ============================= WELCOME / SIGN IN ============================= */
+function renderWelcome(){
+  var configWarning = !sb ? (
+    '<div class="echo" style="border-color:var(--danger);background:var(--danger-bg)"><b>Not configured yet.</b> Add your Supabase URL and anon key at the top of the script before this app can be used — see SETUP.md.</div>'
+  ) : "";
+  return (
+    '<div class="brand">' +
+      '<svg class="brand-mark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-4 10.5c.7.7 1 1.3 1 2.5h6c0-1.2.3-1.8 1-2.5A6 6 0 0 0 12 3z"/></svg>' +
+      '<div class="brand-text"><span class="name">My Paper Trail</span><span class="tag">Circuits Journal</span></div>' +
+    '</div>' +
+    traceSvg() +
+    '<h2>Sign in to open your journal</h2>' +
+    '<p>Sign in with your Google account so your pages save automatically and follow you between devices.</p>' +
+    configWarning +
+    '<button class="btn" id="google-signin" type="button"'+(!sb?' disabled':'')+'>Sign in with Google</button>' +
+    '<footer class="mini"><a href="#" id="edu-link">For educators &rarr;</a></footer>'
+  );
+}
+
+/* ============================= NAME SETUP ============================= */
+function renderSetupName(){
+  return (
+    '<div class="brand">' +
+      '<svg class="brand-mark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-4 10.5c.7.7 1 1.3 1 2.5h6c0-1.2.3-1.8 1-2.5A6 6 0 0 0 12 3z"/></svg>' +
+      '<div class="brand-text"><span class="name">My Paper Trail</span><span class="tag">Circuits Journal</span></div>' +
+    '</div>' +
+    traceSvg() +
+    '<h2>What name should we use?</h2>' +
+    '<p>This is the name your educator and classmates will see next to your pages.</p>' +
+    '<div class="field"><input type="text" id="name-input" placeholder="Enter your full name" autocomplete="name" value="'+esc(nameDraft)+'"></div>' +
+    '<button class="btn" id="save-name" type="button">Save and continue</button>' +
+    (currentProfile && currentProfile.display_name ? '<button class="btn ghost" id="cancel-name" type="button">Cancel</button>' : '')
+  );
+}
+
+/* ============================= WEEK PICKER ============================= */
+function renderWeeks(){
+  var mine = myEntries();
+  var doneWeeks = {};
+  mine.forEach(function(e){ doneWeeks[e.week] = true; });
+  var doneCount = Object.keys(doneWeeks).length;
+
+  // Anything still sitting in this device's local queue hasn't actually
+  // reached the server yet, no matter what the save screen said at the
+  // time — surface that plainly here rather than leaving it invisible,
+  // since a queued page that can never sync (see trySaveEntry/flushQueue)
+  // would otherwise look identical to a successfully saved one forever.
+  var unsyncedCount = loadQueue().filter(function(x){ return currentUser && x.userId===currentUser.id; }).length;
+  var unsyncedBanner = unsyncedCount ? (
+    '<div class="hint" style="background:var(--accent-bg);border:1px solid var(--accent-3);border-radius:8px;padding:10px 12px;margin-bottom:12px">' +
+      (unsyncedCount===1 ? "1 page" : unsyncedCount+" pages") +
+      ' saved on this device only, still trying to reach the server. Keep this browser open and connected to the internet — it retries automatically every 30 seconds.' +
+    '</div>'
+  ) : "";
+
+  var tiles = CURRICULUM.map(function(c){
+    var isDone = !!doneWeeks[c.week];
+    var hasNote = !!(myNotesMap[c.week] && myNotesMap[c.week].sentAt);
+    return (
+      '<button class="week-tile'+(isDone?" done":"")+'" data-week="'+c.week+'" type="button">' +
+        (isDone ? '<span class="done-led" aria-hidden="true"></span>' : "") +
+        (hasNote ? '<span class="note-led" aria-hidden="true" title="Note from your educator"></span>' : "") +
+        '<div class="wk-num">Week '+c.week+'</div>' +
+        '<div class="wk-topic">'+esc(c.topic)+'</div>' +
+        '<div class="wk-level">'+esc(c.level)+'</div>' +
+        '<div class="level-band '+c.level+'"></div>' +
+      '</button>'
+    );
+  }).join("");
+
+  var notesHtml = "";
+  var noteWeeks = Object.keys(myNotesMap).filter(function(w){ return myNotesMap[w] && myNotesMap[w].sentAt; }).sort(function(a,b){return a-b;});
+  if(noteWeeks.length){
+    notesHtml = '<h3 style="margin-top:18px">Notes from your educator</h3>' + noteWeeks.map(function(w){
+      return '<div class="note-card"><div class="who">Week '+w+'</div>'+esc(myNotesMap[w].text)+'</div>';
+    }).join("");
+  }
+
+  return (
+    '<div class="topbar">' +
+      '<button class="icon-btn" id="edit-name" type="button">'+esc(currentStudent)+'</button>' +
+      '<div class="topbar-actions"><button class="icon-btn" id="sign-out" type="button">Sign out</button></div>' +
+    '</div>' +
+    '<button class="btn-gallery" id="gallery-link-top" type="button">'+ICON_GALLERY+' See the class gallery</button>' +
+    unsyncedBanner +
+    '<h2>Pick this week’s page</h2>' +
+    '<p>'+doneCount+' of 10 pages filled in so far.</p>' +
+    '<div class="week-grid">'+tiles+'</div>' +
+    notesHtml +
+    '<footer class="mini"><a href="#" id="edu-link2">For educators &rarr;</a></footer>'
+  );
+}
+
+/* ============================= GALLERY ============================= */
+function renderGallery(){
+  var byWeek = {};
+  allEntries.forEach(function(e){
+    (e.designFinalMedia||[]).forEach(function(m){
+      (byWeek[e.week]=byWeek[e.week]||[]).push({src:m.src, kind:m.kind, student:e.student, label:e.designFinalLabel||"", tag:""});
+    });
+    if(e.optionalAttempted){
+      var c = curriculumFor(e.week);
+      (e.optionalDesignFinalMedia||[]).forEach(function(m){
+        (byWeek[e.week]=byWeek[e.week]||[]).push({src:m.src, kind:m.kind, student:e.student, label:e.optionalDesignFinalLabel||"", tag:(c&&c.project)||"Optional project"});
+      });
+    }
+  });
+  var sections = CURRICULUM.filter(function(c){ return byWeek[c.week] && byWeek[c.week].length; }).map(function(c){
+    var items = byWeek[c.week].map(function(p){
+      var cap = esc(p.student) + (p.label ? ' — '+esc(p.label) : '') + (p.tag ? ' ('+esc(p.tag)+')' : '');
+      // Photos are clickable to open an enlarged view (see wireGallery's
+      // lightbox wiring); videos already have native controls (including
+      // fullscreen), so they're left as-is rather than double-wiring click.
+      var media = p.kind==="video" ? '<video src="'+p.src+'" muted playsinline controls></video>' : '<img src="'+p.src+'" alt="'+cap+'" data-lightbox-src="'+esc(p.src)+'" data-lightbox-cap="'+cap+'" data-lightbox-kind="image">';
+      return (
+        '<figure class="gallery-item" title="'+cap+'">' +
+          media +
+          '<figcaption class="gallery-cap">'+cap+'</figcaption>' +
+        '</figure>'
+      );
+    }).join("");
+    return '<section style="margin-bottom:22px"><h3>Week '+c.week+' &mdash; '+esc(c.topic)+'</h3><div class="gallery-grid">'+items+'</div></section>';
+  }).join("") || '<div class="empty-note">No final designs uploaded yet.</div>';
+
+  return (
+    '<div class="topbar">' +
+      '<button class="icon-btn" id="gallery-exit" type="button">&larr; Back</button>' +
+    '</div>' +
+    '<h3 style="text-align:center">Class gallery</h3>' +
+    '<p class="hint" style="text-align:center">Everyone’s final designs, week by week. Hover (or tap) a photo to see who made it, or click it to view it enlarged.</p>' +
+    sections
+  );
+}
+
+/* ============================= ENTRY FORM ============================= */
+function freshDraft(week){
+  var d = {
+    id: uid(), student: currentStudent, week: week, submittedAt: null, updatedAt: null,
+    confidenceBefore: 0, confidenceAfter: 0,
+    learned: "", challenged: "", goal: "",
+    debugging: [ {worked:"", reasons:[], note:"", media:[]} ],
+    design: [ {type:"", note:"", media:[]} ],
+    designFinalMedia: [], designFinalLabel: "",
+    optionalAttempted: false,
+    optionalDebugging: [ {worked:"", reasons:[], note:"", media:[]} ],
+    optionalDesign: [ {type:"", note:"", media:[]} ],
+    optionalDesignFinalMedia: [], optionalDesignFinalLabel: ""
+  };
+  REFLECTIONS_ALL_FIELDS.forEach(function(f){ d[f] = ""; });
+  return d;
+}
+
+/* Migrates one attempt/design-choice item from the old single-photo shape
+   ({photo: "data:..."} or {photo: "https://..."}) to the current
+   multi-media shape ({media:[{src,kind}]}), so old saved pages (or old
+   Supabase rows) keep opening correctly. */
+function migrateMediaItem(item){
+  if(item.media===undefined){
+    item.media = item.photo ? [{src:item.photo, kind:"image"}] : [];
+  }
+  return item;
+}
+
+/* Migrates a debugging attempt's failure reason from the old single-select
+   shape ({reason: "..."}) to the current multi-select shape
+   ({reasons: ["...", ...]}), so old saved pages keep opening correctly. */
+function migrateReasons(item){
+  if(!Array.isArray(item.reasons)){
+    item.reasons = item.reason ? [item.reason] : [];
+  }
+  return item;
+}
+
+function normalizeDraft(d){
+  if(d.updatedAt===undefined) d.updatedAt = null;
+  if(d.confidenceBefore===undefined){
+    d.confidenceBefore = 0;
+    d.confidenceAfter = d.confidence || 0;
+  }
+  if(d.challenged===undefined) d.challenged = "";
+
+  if(!Array.isArray(d.debugging) || !d.debugging.length) d.debugging = [ {worked:"", reasons:[], note:"", media:[]} ];
+  d.debugging.forEach(migrateMediaItem);
+  d.debugging.forEach(migrateReasons);
+
+  if(!Array.isArray(d.design)){
+    var legacy = d.design || {type:"", note:"", photo:null};
+    if(d.designFinalMedia===undefined){
+      var legacyFinal = legacy.finalPhoto || d.designFinalPhoto || null;
+      d.designFinalMedia = legacyFinal ? [{src:legacyFinal, kind:"image"}] : [];
+    }
+    d.design = [ {type:legacy.type||"", note:legacy.note||"", photo:legacy.photo||null} ];
+  }
+  if(!d.design.length) d.design = [ {type:"", note:"", media:[]} ];
+  d.design.forEach(migrateMediaItem);
+  if(d.designFinalMedia===undefined){
+    d.designFinalMedia = d.designFinalPhoto ? [{src:d.designFinalPhoto, kind:"image"}] : [];
+  }
+  if(d.designFinalLabel===undefined) d.designFinalLabel = "";
+  REFLECTIONS_ALL_FIELDS.forEach(function(f){ if(d[f]===undefined) d[f] = ""; });
+
+  if(d.optionalAttempted===undefined) d.optionalAttempted = false;
+  if(!d.optionalDebugging || !d.optionalDebugging.length) d.optionalDebugging = [ {worked:"", reasons:[], note:"", media:[]} ];
+  d.optionalDebugging.forEach(migrateMediaItem);
+  d.optionalDebugging.forEach(migrateReasons);
+  if(!Array.isArray(d.optionalDesign)){
+    var legacyOpt = d.optionalDesign || {type:"", note:"", photo:null};
+    if(d.optionalDesignFinalMedia===undefined){
+      var legacyOptFinal = legacyOpt.finalPhoto || d.optionalDesignFinalPhoto || null;
+      d.optionalDesignFinalMedia = legacyOptFinal ? [{src:legacyOptFinal, kind:"image"}] : [];
+    }
+    d.optionalDesign = [ {type:legacyOpt.type||"", note:legacyOpt.note||"", photo:legacyOpt.photo||null} ];
+  }
+  if(!d.optionalDesign.length) d.optionalDesign = [ {type:"", note:"", media:[]} ];
+  d.optionalDesign.forEach(migrateMediaItem);
+  if(d.optionalDesignFinalLabel===undefined) d.optionalDesignFinalLabel = "";
+  if(d.optionalDesignFinalMedia===undefined){
+    d.optionalDesignFinalMedia = d.optionalDesignFinalPhoto ? [{src:d.optionalDesignFinalPhoto, kind:"image"}] : [];
+  }
+  return d;
+}
+
+/* The student's own entries, merging in anything still stuck in this
+   device's local save queue (see trySaveEntry/queueEntry). Without this, a
+   page that failed to reach the server — for whatever reason, including a
+   permanent one that will never clear on its own — would look exactly
+   like it had never been filled in at all: it wouldn't count toward
+   "N/10 pages filled in", and reopening that week would silently start a
+   blank page instead of the student's actual last answers. A queued item
+   always represents the most recently edited version of that week (it's
+   only ever queued right after a save attempt), so it takes priority over
+   whatever's in allEntries for the same week. */
+function myEntries(){
+  if(!currentUser) return [];
+  var byWeek = {};
+  allEntries.forEach(function(e){ if(e.userId===currentUser.id) byWeek[e.week] = e; });
+  loadQueue().forEach(function(x){ if(x.userId===currentUser.id) byWeek[x.week] = x; });
+  return Object.keys(byWeek).map(function(w){ return byWeek[w]; });
+}
+function previousEntryFor(week){
+  var candidates = myEntries().filter(function(e){ return e.week === week-1; });
+  return candidates.length ? candidates[candidates.length-1] : null;
+}
+
+function renderEntryView(){
+  var c = curriculumFor(currentWeek);
+  var d = draft;
+
+  var tabsHtml = '<div class="step-nav">' + STEP_LABELS.map(function(label, i){
+    var cls = "step-tab" + (i===entryStep?" current":"") + (sectionComplete(d,i)?" done":"");
+    return '<button type="button" class="'+cls+'" data-step="'+i+'"><span class="dot"></span>'+label+'</button>';
+  }).join("") + '</div>';
+
+  var stepBody = entryStep===0 ? renderDocStep(d) : entryStep===1 ? renderDebugStep(d) : renderDesignStep(d);
+
+  var navButtons;
+  if(entryStep===0){
+    navButtons = '<button class="btn" id="next-step" type="button">Next: Debugging</button>';
+  } else if(entryStep===1){
+    navButtons = '<div class="btn-row"><button class="btn secondary" id="prev-step" type="button">Back</button><button class="btn" id="next-step" type="button">Next: Design</button></div>';
+  } else {
+    navButtons = '<div class="btn-row"><button class="btn secondary" id="prev-step" type="button">Back</button><button class="btn" id="submit-entry" type="button">Save today’s page</button></div>';
+  }
+
+  var optionalToggle = (c.project && entryStep!==0) ? (
+    '<div class="switch-row">' +
+      '<label class="switch-label" for="optional-toggle">Did you attempt the optional project this week?</label>' +
+      '<button type="button" class="switch'+(d.optionalAttempted?" on":"")+'" id="optional-toggle" role="switch" aria-checked="'+(d.optionalAttempted?"true":"false")+'"><span class="switch-knob"></span></button>' +
+    '</div>'
+  ) : "";
+
+  var activityText = (currentWeek===1 && entryStep===2) ? "Time to create! Let's make a LED card with a switch for each color." : (currentWeek===1 ? "" : c.activity);
+  var activityHtml = activityText ? '<p class="section-sub">'+esc(activityText)+'</p>' : "";
+
+  return (
+    '<div class="topbar">' +
+      '<button class="icon-btn" id="back-weeks" type="button">&larr; Weeks</button>' +
+      '<span class="hint" style="margin:0">Week '+currentWeek+' of 10</span>' +
+    '</div>' +
+    tabsHtml +
+    '<h2>'+esc(c.topic)+'</h2>' +
+    activityHtml +
+    optionalToggle +
+    stepBody +
+    navButtons
+  );
+}
+
+function renderDocStep(d){
+  var c = curriculumFor(currentWeek);
+  var prev = previousEntryFor(currentWeek);
+  var echoHtml = "";
+  if(prev){
+    var prevAfter = prev.confidenceAfter!=null ? prev.confidenceAfter : prev.confidence;
+    echoHtml = '<div class="echo">Last time, you finished feeling <b>'+esc(CONF_LABELS[prevAfter-1]||"")+'</b>'+
+      (prev.learned ? ' and said: “'+esc(prev.learned)+'”' : '') + '</div>';
+  }
+
+  var goalField = "";
+  if(currentWeek===1){
+    goalField = '<label for="f-goal">What type of project do you hope to make or learn by the end of this semester?</label>' +
+      '<textarea id="f-goal" placeholder="e.g. I want to build something that lights up when I open my sketchbook">'+esc(d.goal)+'</textarea>';
+  } else if(currentWeek===10){
+    goalField = '<label for="f-goal">Looking back to week 1 &mdash; how have you grown?</label>' +
+      '<textarea id="f-goal" placeholder="What can you do now that you couldn\'t before?">'+esc(d.goal)+'</textarea>';
+  } else {
+    goalField = '<label for="f-goal">Anything you want to try next?</label>' +
+      '<textarea id="f-goal" placeholder="e.g. try a parallel circuit with more LEDs">'+esc(d.goal)+'</textarea>';
+  }
+
+  function confBlock(kind, value){
+    var verb = kind==="before" ? "did you feel" : "do you feel";
+    var when = kind==="before" ? "before the workshop" : "after the workshop";
+    var row = '<div class="conf-row">' + [1,2,3,4,5].map(function(n){
+      return '<button type="button" class="conf-dot'+(value===n?" sel":"")+'" data-conf="'+kind+'" data-conf-val="'+n+'">'+n+'</button>';
+    }).join("") + '</div>' +
+    '<div class="conf-caption">'+(value?esc(CONF_LABELS[value-1]):"&nbsp;")+'</div>';
+    return '<label>How confident '+verb+' about '+esc(c.topic)+' '+when+'?</label>' + row;
+  }
+
+  return (
+    echoHtml +
+    '<div class="card">' +
+      '<div class="section-head">'+ICON_DOC+'<h2>Documentation</h2></div>' +
+      confBlock("before", d.confidenceBefore) +
+      confBlock("after", d.confidenceAfter) +
+      '<label for="f-learned">One thing that clicked for you today.</label>' +
+      '<textarea id="f-learned" placeholder="e.g. I finally understood why my LED was dim">'+esc(d.learned)+'</textarea>' +
+      '<label for="f-challenged">One thing that challenged you today.</label>' +
+      '<textarea id="f-challenged" placeholder="e.g. My LED kept flickering and I couldn\'t figure out why">'+esc(d.challenged)+'</textarea>' +
+      goalField +
+    '</div>'
+  );
+}
+
+function renderDebugStep(d){
+  var c = curriculumFor(currentWeek);
+  var debuggingHtml = d.debugging.map(function(att, i){ return renderAttempt(att, i, d.debugging.length, false); }).join("");
+  var mainCard = (
+    '<div class="card">' +
+      '<div class="section-head">'+ICON_BUG+'<h2>Debugging</h2></div>' +
+      '<p class="section-sub">Snap your circuit &mdash; working or not. Troubleshooting counts as learning.</p>' +
+      '<div id="attempts-wrap">' + debuggingHtml + '</div>' +
+      (d.debugging.length<3 ? '<button type="button" class="btn ghost" id="add-attempt">+ Add another attempt</button>' : "") +
+    '</div>'
+  );
+
+  var optionalCard = "";
+  if(d.optionalAttempted && c.project){
+    var optDebugging = d.optionalDebugging;
+    var optHtml = optDebugging.map(function(att, i){ return renderAttempt(att, i, optDebugging.length, true); }).join("");
+    optionalCard = (
+      '<div class="card">' +
+        '<div class="project-label">'+esc(c.project)+'</div>' +
+        '<div class="section-head">'+ICON_BUG+'<h2>Debugging</h2></div>' +
+        '<p class="section-sub">Snap your optional project circuit &mdash; working or not.</p>' +
+        '<div id="opt-attempts-wrap">' + optHtml + '</div>' +
+        (optDebugging.length<3 ? '<button type="button" class="btn ghost" id="add-opt-attempt">+ Add another attempt</button>' : "") +
+      '</div>'
+    );
+  }
+  return mainCard + optionalCard;
+}
+
+function renderDesignStep(d){
+  var c = curriculumFor(currentWeek);
+  var mainCard = renderDesignCard(d.design, d.designFinalMedia, d.designFinalLabel, "design", "Design", "A design choice you made, saw, or want to try &mdash; add as many as you like.", false, null, "", null, false);
+  var optionalCard = "";
+  if(d.optionalAttempted && c.project){
+    optionalCard = renderDesignCard(d.optionalDesign, d.optionalDesignFinalMedia, d.optionalDesignFinalLabel, "opt-design", "Design", "A design choice for your optional project &mdash; made, saw, or want to try.", true, c.project, "", "Submit interactive project", true);
+  }
+  var reflectionsCard = "";
+  var reflectionQs = REFLECTIONS_BY_WEEK[currentWeek];
+  if(reflectionQs){
+    reflectionsCard = (
+      '<div class="card">' +
+        '<div class="reflections-block">' +
+          '<div style="font-weight:700;font-size:0.92rem;color:var(--ink);margin-bottom:6px">Reflections</div>' +
+          reflectionQs.map(function(r, i){
+            var lastStyle = i===reflectionQs.length-1 ? ' style="margin-bottom:0"' : '';
+            return (
+              '<label for="'+r.id+'" style="font-weight:400;color:var(--ink)">'+r.label+'</label>' +
+              '<textarea id="'+r.id+'" placeholder="'+esc(r.placeholder)+'"'+lastStyle+'>'+esc(d[r.field])+'</textarea>'
+            );
+          }).join("") +
+        '</div>' +
+      '</div>'
+    );
+  }
+  return mainCard + optionalCard + reflectionsCard;
+}
+
+function renderDesignCard(entries, finalMediaData, finalLabelData, prefix, headingHtml, subText, optional, projectLabel, extraHtml, finalHeading, showFinal){
+  var choicesHtml = entries.map(function(e, i){ return renderDesignChoice(e, i, entries.length, optional); }).join("");
+  var addBtnId = optional ? "add-opt-design" : "add-design";
+  var addBtnHtml = entries.length<3 ? '<button type="button" class="btn ghost" id="'+addBtnId+'">+ Add another design choice</button>' : "";
+  var finalMedia = renderMediaSlot(prefix+"-final", null, finalMediaData, "Upload your final design", "Camera or gallery &mdash; add as many as you like, once it's finished");
+  var finalLabelId = "f-" + prefix + "-final-label";
+  var finalSection = !showFinal ? "" : (
+    '<div class="trace" aria-hidden="true" style="margin:18px 0 14px"></div>' +
+    '<div style="font-weight:700;font-size:0.92rem;color:var(--ink);margin-bottom:6px">'+(finalHeading||"Final design")+'</div>' +
+    '<p class="hint" style="margin-top:-2px">Uploading a photo or video here adds it to the class gallery, visible to your classmates and educator.</p>' +
+    finalMedia +
+    '<label for="'+finalLabelId+'">Give it a name</label>' +
+    '<input type="text" id="'+finalLabelId+'" data-final-label placeholder="e.g. Firefly Pop-Up Card" value="'+esc(finalLabelData||"")+'">'
+  );
+  return (
+    '<div class="card">' +
+      (projectLabel ? '<div class="project-label">'+esc(projectLabel)+'</div>' : '') +
+      '<div class="section-head">'+ICON_BULB+'<h2>'+headingHtml+'</h2></div>' +
+      '<p class="section-sub">'+subText+'</p>' +
+      (optional ? '<p class="hint" style="margin-top:-4px">In your optional project, experiment with conductive materials you can find around you &mdash; like aluminum foil or coins &mdash; to extend your circuits beyond the classroom and into your everyday world.</p>' : '') +
+      '<div id="'+prefix+'-choices-wrap">'+choicesHtml+'</div>' +
+      addBtnHtml +
+      finalSection +
+      (extraHtml||"") +
+    '</div>'
+  );
+}
+
+function renderDesignChoice(entry, i, total, optional){
+  var optAttr = optional ? ' data-opt="1"' : '';
+  var typeChips = ['made','saw','idea'].map(function(t){
+    var lbl = t==="made"?"I made this":t==="saw"?"I saw this":"Idea I want to try";
+    return '<button type="button" class="chip'+(entry.type===t?" sel":"")+'" data-design-idx="'+i+'" data-type="'+t+'"'+optAttr+'>'+lbl+'</button>';
+  }).join("");
+  return (
+    '<div class="attempt" data-idx="'+i+'">' +
+      '<div class="attempt-head"><span class="lbl">Design choice '+(i+1)+'</span>' +
+      (total>1 ? '<button type="button" class="remove-attempt" data-remove-design="'+i+'"'+optAttr+'>remove</button>' : '') +
+      '</div>' +
+      '<div class="chip-group" style="margin-top:8px">'+typeChips+'</div>' +
+      '<textarea data-design-note="'+i+'"'+optAttr+' placeholder="What did you try, and why?">'+esc(entry.note)+'</textarea>' +
+      renderMediaSlot(optional?"opt-design":"design", i, entry.media, "Add a photo or video of your design", "Camera or gallery &mdash; add as many as you like") +
+    '</div>'
+  );
+}
+
+function updateStepTabs(){
+  var tabs = document.querySelectorAll(".step-tab");
+  if(!tabs.length) return;
+  tabs.forEach(function(tab, i){
+    tab.classList.toggle("done", sectionComplete(draft, i));
+  });
+}
+
+function sectionComplete(d, idx){
+  if(idx===0) return d.confidenceBefore>0 && d.confidenceAfter>0 && d.learned.trim().length>0;
+  if(idx===1) return d.debugging.some(function(a){ return a.worked!==""; });
+  if(idx===2) return d.design.some(function(e){ return e.type!=="" && e.note.trim().length>0; });
+  return false;
+}
+
+function renderAttempt(att, i, total, optional){
+  var optAttr = optional ? ' data-opt="1"' : '';
+  var workedChips = [
+    {v:"yes", l:"Worked!"}, {v:"no", l:"Didn’t work"}, {v:"stuck", l:"Still stuck"}
+  ].map(function(o){
+    return '<button type="button" class="chip'+(att.worked===o.v?' sel':'')+'" data-attempt="'+i+'" data-worked="'+o.v+'"'+optAttr+'>'+o.l+'</button>';
+  }).join("");
+  var reasonsHtml = "";
+  if(att.worked==="no" || att.worked==="stuck"){
+    var reasonsList = att.reasons||[];
+    reasonsHtml = '<p class="hint" style="margin:2px 0 6px">Select any that apply.</p><div class="chip-group">' + DEBUG_REASONS.map(function(r){
+      return '<button type="button" class="chip'+(reasonsList.indexOf(r)>=0?' sel':'')+'" data-attempt="'+i+'" data-reason="'+esc(r)+'"'+optAttr+'>'+esc(r)+'</button>';
+    }).join("") + '</div>';
+  }
+  return (
+    '<div class="attempt" data-idx="'+i+'">' +
+      '<div class="attempt-head"><span class="lbl">Attempt '+(i+1)+'</span>' +
+      (total>1 ? '<button type="button" class="remove-attempt" data-remove-attempt="'+i+'"'+optAttr+'>remove</button>' : '') +
+      '</div>' +
+      '<div class="chip-group" style="margin-top:8px">'+workedChips+'</div>' +
+      reasonsHtml +
+      '<textarea data-attempt-note="'+i+'"'+optAttr+' placeholder="What happened?">'+esc(att.note)+'</textarea>' +
+      renderMediaSlot(optional?"opt-attempt":"attempt", i, att.media, "Add a photo or video of your circuit", "Camera or gallery &mdash; add as many as you like") +
+    '</div>'
+  );
+}
+
+/* Renders a multi-item photo/video picker: any number of existing
+   thumbnails (each individually removable), plus an always-present "add"
+   slot so more can be attached on top of what's already there — students
+   are never limited to a single photo. */
+function renderMediaSlot(kind, idx, mediaArr, label, sub){
+  label = label || "Add a photo or video";
+  sub = sub || "Camera or gallery &mdash; add as many as you like";
+  mediaArr = mediaArr || [];
+  var idxPart = (idx!==null && idx!==undefined) ? ":"+idx : "";
+  var inputAttrs = 'type="file" accept="image/*,video/*" multiple data-media-kind="'+kind+'"' + (idx!==null&&idx!==undefined ? ' data-media-idx="'+idx+'"' : '');
+  var thumbs = mediaArr.map(function(m, mi){
+    var body = m.kind==="video"
+      ? '<video src="'+m.src+'" muted playsinline></video>'
+      : '<img src="'+m.src+'" alt="Uploaded photo">';
+    return (
+      '<div class="photo-card">' +
+        body +
+        '<button type="button" class="remove" data-remove-media="'+kind+idxPart+'" data-media-i="'+mi+'" aria-label="Remove">&times;</button>' +
+      '</div>'
+    );
+  }).join("");
+  return (
+    '<div class="media-slot">' +
+      (thumbs ? '<div class="photo-card-grid">'+thumbs+'</div>' : '') +
+      '<div class="photo-slot">' +
+        ICON_CAM.replace('viewBox="0 0 24 24"','viewBox="0 0 24 24" width="22" height="22" style="color:var(--accent)"') +
+        '<div class="ph-label">'+label+'</div>' +
+        '<div class="ph-sub">'+sub+'</div>' +
+        '<input '+inputAttrs+'>' +
+      '</div>' +
+    '</div>'
+  );
+}
+
+/* ============================= DONE ============================= */
+function renderDone(){
+  var doneCount = Object.keys(myEntries().reduce(function(acc,e){acc[e.week]=1;return acc;},{})).length;
+  return (
+    '<div class="streak">' +
+      '<div class="big">'+doneCount+' / 10</div>' +
+      '<div class="cap">pages filled in</div>' +
+    '</div>' +
+    traceSvg() +
+    '<h2 style="text-align:center">Page saved.</h2>' +
+    '<p style="text-align:center">Nice work, '+esc(currentStudent)+'. See you next week.</p>' +
+    '<div class="btn-row" style="flex-direction:column">' +
+      '<button class="btn" id="share-entry" type="button">Send to my educator</button>' +
+      '<button class="btn secondary" id="download-entry" type="button">Download this page</button>' +
+      '<button class="btn ghost" id="back-to-weeks" type="button">Back to my journal</button>' +
+    '</div>'
+  );
+}
+
+/* Shared by renderEducator, runReasonSummary, and runReflectionSummary so
+   the week/student filter (moved to the top of the dashboard) applies
+   consistently to the stats, the reason chart+summary, the reflection
+   summary, and the entries list — not just the entries list alone. */
+function eduApplyFilters(list){
+  return list.filter(function(e){
+    if(eduFilterWeek!=="all" && String(e.week)!==String(eduFilterWeek)) return false;
+    if(eduFilterStudent!=="all" && e.student!==eduFilterStudent) return false;
+    return true;
+  });
+}
+
+/* ============================= EDUCATOR ============================= */
+function renderEducator(){
+  if(!currentUser){
+    return (
+      '<div class="gate-box">' +
+        traceSvg() +
+        '<h2>Educator view</h2>' +
+        '<p>Sign in with your Google or Microsoft account to continue. Your account needs to be added to the educator list by an existing educator.</p>' +
+        '<button class="btn" id="edu-signin-google" type="button"'+(!sb?' disabled':'')+'>Sign in with Google</button>' +
+        '<button class="btn secondary" id="edu-signin-ms" type="button">Sign in with Microsoft</button>' +
+        '<button class="btn ghost" id="edu-back" type="button">Back</button>' +
+      '</div>'
+    );
+  }
+  if(!isEducatorAccount){
+    return (
+      '<div class="gate-box">' +
+        traceSvg() +
+        '<h2>Not an educator account</h2>' +
+        '<p>'+esc(currentUser.email||"This account")+' isn’t on the educator list yet. Ask an existing educator to add your email in the Supabase dashboard (the <code>educators</code> table).</p>' +
+        '<button class="btn ghost" id="edu-back" type="button">Back</button>' +
+      '</div>'
+    );
+  }
+
+  var all = allEntries;
+  var students = Array.from(new Set(all.map(function(e){return e.student;}))).sort();
+
+  var filtered = eduApplyFilters(all);
+  var filteredStudents = Array.from(new Set(filtered.map(function(e){return e.student;})));
+
+  var avgConf = "–";
+  if(filtered.length){
+    var sum=0,n=0;
+    filtered.forEach(function(e){
+      var v = e.confidenceAfter!=null ? e.confidenceAfter : e.confidence;
+      if(v){sum+=v;n++;}
+    });
+    if(n) avgConf = (sum/n).toFixed(1);
+  }
+  var reasonTally = {};
+  filtered.forEach(function(e){
+    (e.debugging||[]).forEach(function(a){
+      (a.reasons||[]).forEach(function(r){ reasonTally[r] = (reasonTally[r]||0)+1; });
+    });
+  });
+  var maxTally = Math.max(1, Object.values(reasonTally).reduce(function(a,b){return Math.max(a,b);},0));
+  var reasonBars = Object.keys(reasonTally).sort(function(a,b){return reasonTally[b]-reasonTally[a];}).map(function(r){
+    return '<div class="bar-row"><span class="lbl" title="'+esc(r)+'">'+esc(r.length>16?r.slice(0,15)+'…':r)+'</span><div class="bar-track"><div class="bar-fill" style="width:'+(100*reasonTally[r]/maxTally)+'%"></div></div><span class="val">'+reasonTally[r]+'</span></div>';
+  }).join("") || '<p class="hint">No debugging notes yet.</p>';
+
+  var weekOptions = '<option value="all">All weeks</option>' + CURRICULUM.map(function(c){return '<option value="'+c.week+'"'+(eduFilterWeek==String(c.week)?' selected':'')+'>Week '+c.week+'</option>';}).join("");
+  var studentOptions = '<option value="all">All students</option>' + students.map(function(s){return '<option value="'+esc(s)+'"'+(eduFilterStudent===s?' selected':'')+'>'+esc(s)+'</option>';}).join("");
+
+  var rows = filtered.slice().sort(function(a,b){return ((b.updatedAt||b.submittedAt)||"").localeCompare((a.updatedAt||a.submittedAt)||"");}).map(function(e){
+    var thumbs = [];
+    (e.debugging||[]).forEach(function(a){ (a.media||[]).forEach(function(m){ thumbs.push(m); }); });
+    (Array.isArray(e.design)?e.design:[]).forEach(function(x){ (x.media||[]).forEach(function(m){ thumbs.push(m); }); });
+    (e.designFinalMedia||[]).forEach(function(m){ thumbs.push(m); });
+    if(e.optionalAttempted){
+      (e.optionalDebugging||[]).forEach(function(a){ (a.media||[]).forEach(function(m){ thumbs.push(m); }); });
+      (Array.isArray(e.optionalDesign)?e.optionalDesign:[]).forEach(function(x){ (x.media||[]).forEach(function(m){ thumbs.push(m); }); });
+      (e.optionalDesignFinalMedia||[]).forEach(function(m){ thumbs.push(m); });
+    }
+    var thumbCap = esc(e.student) + ' — Wk ' + e.week;
+    var thumbsHtml = thumbs.length ? '<div class="thumbs">'+thumbs.map(function(m){
+      return m.kind==="video"
+        ? '<video src="'+m.src+'" muted data-lightbox-src="'+esc(m.src)+'" data-lightbox-cap="'+thumbCap+'" data-lightbox-kind="video"></video>'
+        : '<img src="'+m.src+'" alt="" data-lightbox-src="'+esc(m.src)+'" data-lightbox-cap="'+thumbCap+'" data-lightbox-kind="image">';
+    }).join("")+'</div>' : "";
+    var confBefore = e.confidenceBefore, confAfter = e.confidenceAfter!=null ? e.confidenceAfter : e.confidence;
+    var key = e.userId + "__" + e.week;
+    var note = eduNotesMap[key] || {text:"", sentAt:null};
+    return (
+      '<div class="entry-row">' +
+        '<div class="top"><span class="who">'+esc(e.student)+' &middot; Wk '+e.week+'</span><span class="when">'+((e.updatedAt||e.submittedAt)?"Last saved "+fmtDate(e.updatedAt||e.submittedAt):"")+'</span></div>' +
+        '<div class="hint" style="margin:0 0 4px">Confidence: '+(confBefore||"–")+' &rarr; '+(confAfter||"–")+'/5</div>' +
+        (e.learned ? '<div>“'+esc(e.learned)+'”</div>' : '') +
+        thumbsHtml +
+        '<button type="button" class="btn ghost" style="padding:6px 0;width:auto" data-toggle-detail="'+key+'">Show all details &darr;</button>' +
+        '<div class="entry-detail" data-detail-for="'+key+'" hidden>' + renderEntryDetail(e) + '</div>' +
+        '<div style="margin-top:10px">' +
+          '<label style="font-size:0.82rem">Feedback note for '+esc(e.student)+' (Week '+e.week+')</label>' +
+          '<textarea data-note-for="'+key+'" data-note-user="'+e.userId+'" data-note-week="'+e.week+'" placeholder="Notes after reviewing this page…">'+esc(note.text)+'</textarea>' +
+          '<button type="button" class="btn secondary" data-send-note="'+key+'">Send note</button>' +
+          (note.sentAt ? '<div class="hint" style="margin-top:4px">Sent '+fmtDate(note.sentAt)+'</div>' : '') +
+        '</div>' +
+      '</div>'
+    );
+  }).join("") || '<div class="empty-note">No entries yet for this filter.</div>';
+
+  var healthBanner = backendHealthWarning ? (
+    '<div class="hint" style="background:var(--danger-bg);border:1px solid var(--danger);color:var(--danger);border-radius:8px;padding:12px 14px;margin-bottom:14px;font-weight:600">' +
+      '⚠ ' + esc(backendHealthWarning) +
+    '</div>'
+  ) : "";
+
+  return (
+    '<div class="topbar">' +
+      '<span style="font-weight:700">Educator view</span>' +
+      '<div class="topbar-actions"><button class="icon-btn" id="edu-sign-out" type="button">Sign out</button></div>' +
+    '</div>' +
+    healthBanner +
+    '<button class="btn-gallery" id="edu-gallery-link-top" type="button">'+ICON_GALLERY+' See the class gallery</button>' +
+    '<div class="filter-row"><select id="edu-week-filter">'+weekOptions+'</select><select id="edu-student-filter">'+studentOptions+'</select></div>' +
+    '<div class="stat-grid">' +
+      '<div class="stat-card"><div class="n">'+filtered.length+'</div><div class="l">Pages collected</div></div>' +
+      '<div class="stat-card"><div class="n">'+filteredStudents.length+'</div><div class="l">Students</div></div>' +
+      '<div class="stat-card"><div class="n">'+avgConf+'</div><div class="l">Avg. confidence</div></div>' +
+      '<div class="stat-card"><div class="n">'+Object.values(reasonTally).reduce(function(a,b){return a+b;},0)+'</div><div class="l">Debug notes</div></div>' +
+    '</div>' +
+    '<h3>Common debugging reasons</h3>' + reasonBars +
+    '<button type="button" class="btn secondary" id="edu-summarize-reasons" style="margin-top:2px">Summarize reasons</button>' +
+    '<div id="edu-summary-out" class="echo" hidden style="margin-top:10px"></div>' +
+    '<h3 style="margin-top:22px">Student reflections</h3>' +
+    '<p class="hint" style="margin-top:-4px">What clicked, and what challenged them, for the pages matching the filter above.</p>' +
+    '<button type="button" class="btn secondary" id="edu-summarize-reflections" style="margin-top:2px">Summarize reflections</button>' +
+    '<div id="edu-reflection-out" class="echo" hidden style="margin-top:10px"></div>' +
+    '<h3 style="margin-top:22px">Entries</h3>' +
+    '<div id="edu-entries">'+rows+'</div>' +
+    '<div class="btn-row">' +
+      '<button class="btn secondary" id="edu-export-csv" type="button">Export CSV</button>' +
+      '<button class="btn secondary" id="edu-export-gallery" type="button">Download photo gallery</button>' +
+    '</div>'
+  );
+}
+
+function renderEntryDetail(e){
+  var c = curriculumFor(e.week);
+  var confBefore = e.confidenceBefore, confAfter = e.confidenceAfter!=null ? e.confidenceAfter : e.confidence;
+
+  var detailCap = esc(e.student) + ' — Wk ' + e.week;
+  function mediaTagsHtml(mediaArr){
+    return (mediaArr||[]).map(function(m){
+      // Videos already have native controls (including fullscreen), so
+      // they're left as-is rather than double-wiring the lightbox click —
+      // same convention as the class gallery and entry-row thumbs.
+      return m.kind==="video"
+        ? '<video class="detail-photo" src="'+m.src+'" controls></video>'
+        : '<img class="detail-photo" src="'+m.src+'" alt="" data-lightbox-src="'+esc(m.src)+'" data-lightbox-cap="'+detailCap+'" data-lightbox-kind="image">';
+    }).join("");
+  }
+  function attemptRows(list){
+    return (list||[]).map(function(a, i){
+      return '<div class="detail-item"><b>Attempt '+(i+1)+':</b> '+esc(a.worked||"–") +
+        ((a.reasons&&a.reasons.length) ? ' — '+esc(a.reasons.join(", ")) : '') +
+        (a.note ? '<div class="hint" style="margin:2px 0 0">“'+esc(a.note)+'”</div>' : '') +
+        mediaTagsHtml(a.media) + '</div>';
+    }).join("");
+  }
+  function choiceRows(list){
+    return (Array.isArray(list)?list:[]).map(function(x, i){
+      return '<div class="detail-item"><b>Choice '+(i+1)+':</b> '+esc(x.type||"–") +
+        (x.note ? '<div class="hint" style="margin:2px 0 0">“'+esc(x.note)+'”</div>' : '') +
+        mediaTagsHtml(x.media) + '</div>';
+    }).join("");
+  }
+  function finalRow(mediaArr, label){
+    if(!mediaArr || !mediaArr.length) return "";
+    return '<div class="detail-item"><b>Final design'+(label?': '+esc(label):'')+'</b>' + mediaTagsHtml(mediaArr) + '</div>';
+  }
+
+  var reflectionsHtml = "";
+  var reflectionQsDetail = REFLECTIONS_BY_WEEK[e.week];
+  if(reflectionQsDetail){
+    var reflectionRows = reflectionQsDetail.map(function(r, i){
+      return e[r.field] ? '<div'+(i>0?' style="margin-top:4px"':'')+'><b>'+esc(r.short)+':</b> '+esc(e[r.field])+'</div>' : '';
+    }).join("");
+    if(reflectionRows) reflectionsHtml = '<div class="detail-item">'+reflectionRows+'</div>';
+  }
+  var mainDesignHtml = choiceRows(e.design) + finalRow(e.designFinalMedia, e.designFinalLabel) + reflectionsHtml;
+  var optionalHtml = "";
+  if(e.optionalAttempted && c && c.project){
+    optionalHtml = (
+      '<div class="detail-block"><div class="detail-block-head">Optional project &mdash; '+esc(c.project)+'</div>' +
+        attemptRows(e.optionalDebugging) +
+        choiceRows(e.optionalDesign) +
+        finalRow(e.optionalDesignFinalMedia, e.optionalDesignFinalLabel) +
+      '</div>'
+    );
+  }
+
+  return (
+    '<div class="detail-block">' +
+      '<div class="hint" style="margin:0 0 4px">Confidence before: '+(confBefore||"–")+'/5 &nbsp;&middot;&nbsp; after: '+(confAfter||"–")+'/5</div>' +
+      (e.challenged ? '<div class="hint">Challenge: '+esc(e.challenged)+'</div>' : '') +
+      (e.goal ? '<div class="hint">Goal/next step: '+esc(e.goal)+'</div>' : '') +
+    '</div>' +
+    '<div class="detail-block"><div class="detail-block-head">Debugging</div>' + (attemptRows(e.debugging) || '<p class="hint">No attempts logged.</p>') + '</div>' +
+    '<div class="detail-block"><div class="detail-block-head">Design</div>' + (mainDesignHtml || '<p class="hint">No design choices logged.</p>') + '</div>' +
+    optionalHtml
+  );
+}
+
+/* ============================= WIRING ============================= */
+function wireView(view){
+  if(view==="welcome") wireWelcome();
+  else if(view==="setup-name") wireSetupName();
+  else if(view==="weeks") wireWeeks();
+  else if(view==="entry") wireEntry();
+  else if(view==="done") wireDone();
+  else if(view==="educator") wireEducator();
+  else if(view==="gallery") wireGallery();
+}
+
+function wireGallery(){
+  qs("#gallery-exit").addEventListener("click", function(){ goto(galleryReturnView); });
+}
+
+/* ============================= LIGHTBOX =============================
+   A single page-level lightbox, wired once at boot (see wireLightboxOnce,
+   called from boot()) rather than per-view. Its markup lives in the
+   static HTML shell next to #app so it survives every app.innerHTML
+   re-render. A delegated document-level click listener opens it for any
+   element carrying data-lightbox-src, wherever that element appears —
+   the class gallery, educator-side entry thumbnails, or an entry's
+   expanded detail view — so views only need to add the data attributes,
+   never their own wiring. Shows either an image or a video depending on
+   data-lightbox-kind, and offers a Download button. */
+function openLightbox(src, cap, kind){
+  var body = qs("#lightbox-body");
+  var lbCap = qs("#lightbox-cap");
+  if(!body) return;
+  body.innerHTML = kind==="video"
+    ? '<video src="'+src+'" controls autoplay playsinline></video>'
+    : '<img src="'+src+'" alt="'+esc(cap||"")+'">';
+  lbCap.textContent = cap || "";
+  qs("#lightbox-overlay").hidden = false;
+  qs("#lightbox-overlay").setAttribute("data-current-src", src);
+  qs("#lightbox-overlay").setAttribute("data-current-kind", kind||"image");
+}
+function closeLightbox(){
+  var overlay = qs("#lightbox-overlay");
+  if(!overlay) return;
+  overlay.hidden = true;
+  qs("#lightbox-body").innerHTML = "";
+}
+function downloadLightboxMedia(){
+  var overlay = qs("#lightbox-overlay");
+  var src = overlay.getAttribute("data-current-src");
+  var kind = overlay.getAttribute("data-current-kind") || "image";
+  if(!src) return;
+  var filename = "paper-trail-" + Date.now() + (kind==="video" ? ".mp4" : ".jpg");
+  fetch(src).then(function(r){
+    if(!r.ok) throw new Error("bad response");
+    return r.blob();
+  }).then(function(blob){
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url; a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 4000);
+  }).catch(function(){
+    // Cross-origin storage buckets can block fetch(); fall back to
+    // opening the file directly so the educator can save it by hand.
+    window.open(src, "_blank");
+    showToast("Couldn't auto-download — opened the file in a new tab instead. Right-click (or long-press) it to save.");
+  });
+}
+var lightboxWired = false;
+function wireLightboxOnce(){
+  if(lightboxWired) return;
+  lightboxWired = true;
+  document.addEventListener("click", function(ev){
+    var trigger = ev.target.closest("[data-lightbox-src]");
+    if(trigger){
+      openLightbox(trigger.getAttribute("data-lightbox-src"), trigger.getAttribute("data-lightbox-cap"), trigger.getAttribute("data-lightbox-kind"));
+      return;
+    }
+    if(ev.target.id==="lightbox-close"){ closeLightbox(); return; }
+    if(ev.target.id==="lightbox-download"){ downloadLightboxMedia(); return; }
+    var overlay = qs("#lightbox-overlay");
+    if(overlay && !overlay.hidden && ev.target===overlay){ closeLightbox(); }
+  });
+  document.addEventListener("keydown", function(ev){
+    var overlay = qs("#lightbox-overlay");
+    if(ev.key==="Escape" && overlay && !overlay.hidden) closeLightbox();
+  });
+}
+
+/* Always redirect back to the bare page URL (origin + path only, no query
+   string or hash) rather than window.location.href as-is. Supabase's OAuth
+   redirect flow appends its own params (an auth "code", or — if something
+   goes wrong — a fairly long error/error_description) to the page URL.
+   If a later sign-in attempt then reuses window.location.href verbatim as
+   redirectTo, whatever landed there gets forwarded straight back into that
+   next OAuth request, and it compounds on every retry. Microsoft (Azure
+   AD)'s authorize endpoint has a much stricter query-string length limit
+   than Google's, so it's the one that actually fails once this happens —
+   surfacing as "AADSTS90015: Requested query string is too long." Starting
+   from a clean URL every time this is called avoids that entirely. */
+function oauthRedirectUrl(){
+  return window.location.origin + window.location.pathname;
+}
+
+function signInWithGoogle(){
+  if(!sb){ showToast("Supabase isn't configured yet — see SETUP.md."); return; }
+  sb.auth.signInWithOAuth({provider:"google", options:{redirectTo: oauthRedirectUrl()}});
+}
+
+/* Microsoft / Microsoft 365 / Exchange accounts. Supabase Auth calls this
+   provider "azure" (Microsoft Entra ID, formerly Azure AD) — it's the same
+   provider whether the account is a personal Microsoft account or a school
+   or work Microsoft 365/Exchange account. Requesting the "email" scope
+   explicitly, since some Microsoft tenants don't include it by default. */
+function signInWithMicrosoft(){
+  if(!sb){ showToast("Supabase isn't configured yet — see SETUP.md."); return; }
+  sb.auth.signInWithOAuth({provider:"azure", options:{redirectTo: oauthRedirectUrl(), scopes:"email openid profile"}});
+}
+
+/* Once the Supabase client has had a chance to read an OAuth redirect's
+   token/code (or error) out of the URL, strip it from the address bar.
+   Otherwise it lingers in window.location.href and gets picked up as the
+   redirectTo target the next time someone clicks a sign-in button on the
+   same tab — see oauthRedirectUrl() above for why that's the actual bug
+   behind the Microsoft "query string too long" error. */
+function stripAuthParamsFromUrl(){
+  try{
+    if(/[#?](access_token|refresh_token|provider_token|code|error|error_description)=/.test(window.location.href)){
+      window.history.replaceState(null, "", oauthRedirectUrl());
+    }
+  }catch(e){ /* history API unavailable in some embedded/webview contexts — harmless no-op */ }
+}
+
+function wireWelcome(){
+  var btn = qs("#google-signin");
+  if(btn) btn.addEventListener("click", signInWithGoogle);
+  var edu = qs("#edu-link");
+  if(edu) edu.addEventListener("click", function(ev){ ev.preventDefault(); goto("educator"); });
+}
+
+function wireSetupName(){
+  qs("#save-name").addEventListener("click", function(){
+    var val = qs("#name-input").value.trim();
+    if(!val){ qs("#name-input").focus(); return; }
+    saveProfileName(val);
+  });
+  var cancel = qs("#cancel-name");
+  if(cancel) cancel.addEventListener("click", function(){ goto("weeks"); });
+}
+
+function wireWeeks(){
+  qs("#sign-out").addEventListener("click", function(){
+    if(sb) sb.auth.signOut();
+  });
+  qs("#edit-name").addEventListener("click", function(){
+    nameDraft = currentStudent;
+    goto("setup-name");
+  });
+  document.querySelectorAll(".week-tile").forEach(function(b){
+    b.addEventListener("click", function(){
+      currentWeek = parseInt(b.getAttribute("data-week"),10);
+      var existing = myEntries().filter(function(e){return e.week===currentWeek;});
+      draft = normalizeDraft(existing.length ? JSON.parse(JSON.stringify(existing[existing.length-1])) : freshDraft(currentWeek));
+      entryStep = 0;
+      goto("entry");
+    });
+  });
+  var edu = qs("#edu-link2");
+  if(edu) edu.addEventListener("click", function(ev){
+    ev.preventDefault();
+    goto("educator");
+    if(isEducatorAccount) loadEducatorData().then(render);
+  });
+  var galleryLink = qs("#gallery-link-top");
+  if(galleryLink) galleryLink.addEventListener("click", function(){ galleryReturnView = "weeks"; goto("gallery"); });
+}
+
+function wireEntry(){
+  qs("#back-weeks").addEventListener("click", function(){ goto("weeks"); });
+
+  var optToggle = qs("#optional-toggle");
+  if(optToggle) optToggle.addEventListener("click", function(){
+    draft.optionalAttempted = !draft.optionalAttempted;
+    if(draft.optionalAttempted){
+      if(!draft.optionalDebugging || !draft.optionalDebugging.length) draft.optionalDebugging = [{worked:"", reasons:[], note:"", media:[]}];
+      if(!draft.optionalDesign || !draft.optionalDesign.length) draft.optionalDesign = [{type:"", note:"", media:[]}];
+    }
+    render();
+  });
+
+  document.querySelectorAll(".step-tab").forEach(function(b){
+    b.addEventListener("click", function(){ entryStep = parseInt(b.getAttribute("data-step"),10); window.scrollTo(0,0); render(); });
+  });
+  var nextBtn = qs("#next-step");
+  if(nextBtn) nextBtn.addEventListener("click", function(){ entryStep = Math.min(2, entryStep+1); window.scrollTo(0,0); render(); });
+  var prevBtn = qs("#prev-step");
+  if(prevBtn) prevBtn.addEventListener("click", function(){ entryStep = Math.max(0, entryStep-1); window.scrollTo(0,0); render(); });
+
+  if(entryStep===0) wireDocStep();
+  else if(entryStep===1) wireDebugStep();
+  else wireDesignStep();
+
+  var submitBtn = qs("#submit-entry");
+  if(submitBtn) submitBtn.addEventListener("click", function(){
+    // Saving is always allowed, even partially filled in — a student can
+    // save whatever they have so far, come back later, and keep editing,
+    // adding, or deleting anything (text, attempts, design choices,
+    // photos/videos) at any time. Nothing here blocks an incomplete save.
+    if(!draft.submittedAt) draft.submittedAt = new Date().toISOString();
+    draft.updatedAt = new Date().toISOString();
+    draft.student = currentStudent;
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Saving…";
+    // Re-check the live session right before writing, rather than trusting
+    // whatever "currentUser" happened to be set from earlier in the page's
+    // life. A session that quietly expired or never fully landed (common
+    // right after an OAuth redirect on mobile, where the tab can be
+    // backgrounded mid-flow) would otherwise silently save with a null
+    // user id — which can never be written to the database — leaving the
+    // student with a page that *looks* saved but structurally never can be.
+    (sb ? sb.auth.getSession() : Promise.resolve({data:{session:null}})).then(function(res){
+      // Trust this check completely, in both directions — if the live
+      // session is gone, currentUser needs to reflect that (null) rather
+      // than keep whatever stale value it had before, or this check
+      // couldn't actually catch an expired/lost session at all.
+      currentUser = (res.data && res.data.session) ? res.data.session.user : null;
+      draft.userId = currentUser ? currentUser.id : null;
+      return trySaveEntry(draft);
+    }).then(function(result){
+      lastSubmitted = draft;
+      if(result.ok){
+        goto("done");
+        return;
+      }
+      if(result.reason==="no-user"){
+        // Can't queue this — there's no account to eventually attach it
+        // to, and queuing it would just recreate the original bug. Keep
+        // the student on the page with their draft intact and tell them
+        // plainly what happened instead of a false "saved" message.
+        submitBtn.disabled = false;
+        submitBtn.textContent = "Save today’s page";
+        showToast("You've been signed out, so this page couldn't be saved. Please sign in again, then hit Save — your answers on this screen are still here.");
+        return;
+      }
+      queueEntry(draft);
+      goto("done");
+      if(result.offline){
+        showToast("You're offline — saved on this device, will sync automatically.");
+      } else {
+        showToast("Couldn't reach the server just now, so this was saved on this device only. It'll keep retrying automatically — if it's still not showing up for your educator later, let them know.");
+      }
+    });
+  });
+}
+
+function wireDocStep(){
+  document.querySelectorAll(".conf-dot").forEach(function(b){
+    b.addEventListener("click", function(){
+      var kind = b.getAttribute("data-conf");
+      var val = parseInt(b.getAttribute("data-conf-val"),10);
+      if(kind==="before") draft.confidenceBefore = val;
+      else draft.confidenceAfter = val;
+      render();
+    });
+  });
+  qs("#f-learned").addEventListener("input", function(){ draft.learned = this.value; updateStepTabs(); });
+  qs("#f-challenged").addEventListener("input", function(){ draft.challenged = this.value; });
+  qs("#f-goal").addEventListener("input", function(){ draft.goal = this.value; });
+}
+
+function wireDebugStep(){
+  function arrFor(el){ return el.hasAttribute("data-opt") ? draft.optionalDebugging : draft.debugging; }
+  document.querySelectorAll("[data-worked]").forEach(function(b){
+    b.addEventListener("click", function(){
+      var i = parseInt(b.getAttribute("data-attempt"),10);
+      arrFor(b)[i].worked = b.getAttribute("data-worked");
+      render();
+    });
+  });
+  document.querySelectorAll("[data-reason]").forEach(function(b){
+    b.addEventListener("click", function(){
+      var i = parseInt(b.getAttribute("data-attempt"),10);
+      var att = arrFor(b)[i];
+      if(!Array.isArray(att.reasons)) att.reasons = [];
+      var r = b.getAttribute("data-reason");
+      var pos = att.reasons.indexOf(r);
+      if(pos>=0) att.reasons.splice(pos,1); else att.reasons.push(r);
+      render();
+    });
+  });
+  document.querySelectorAll("[data-attempt-note]").forEach(function(t){
+    t.addEventListener("input", function(){
+      var i = parseInt(this.getAttribute("data-attempt-note"),10);
+      arrFor(this)[i].note = this.value;
+    });
+  });
+  document.querySelectorAll("[data-remove-attempt]").forEach(function(b){
+    b.addEventListener("click", function(){
+      var i = parseInt(b.getAttribute("data-remove-attempt"),10);
+      arrFor(b).splice(i,1);
+      render();
+    });
+  });
+  var addBtn = qs("#add-attempt");
+  if(addBtn) addBtn.addEventListener("click", function(){
+    draft.debugging.push({worked:"", reasons:[], note:"", media:[]});
+    render();
+  });
+  var addOptBtn = qs("#add-opt-attempt");
+  if(addOptBtn) addOptBtn.addEventListener("click", function(){
+    draft.optionalDebugging.push({worked:"", reasons:[], note:"", media:[]});
+    render();
+  });
+  wireMediaInputs();
+}
+
+function wireDesignStep(){
+  function arrFor(el){ return el.hasAttribute("data-opt") ? draft.optionalDesign : draft.design; }
+  document.querySelectorAll("[data-design-idx]").forEach(function(b){
+    b.addEventListener("click", function(){
+      var i = parseInt(b.getAttribute("data-design-idx"),10);
+      arrFor(b)[i].type = b.getAttribute("data-type");
+      render();
+    });
+  });
+  document.querySelectorAll("[data-design-note]").forEach(function(t){
+    t.addEventListener("input", function(){
+      var i = parseInt(this.getAttribute("data-design-note"),10);
+      arrFor(this)[i].note = this.value;
+      updateStepTabs();
+    });
+  });
+  document.querySelectorAll("[data-remove-design]").forEach(function(b){
+    b.addEventListener("click", function(){
+      var i = parseInt(b.getAttribute("data-remove-design"),10);
+      arrFor(b).splice(i,1);
+      render();
+    });
+  });
+  var addBtn = qs("#add-design");
+  if(addBtn) addBtn.addEventListener("click", function(){
+    draft.design.push({type:"", note:"", media:[]});
+    render();
+  });
+  var addOptBtn = qs("#add-opt-design");
+  if(addOptBtn) addOptBtn.addEventListener("click", function(){
+    draft.optionalDesign.push({type:"", note:"", media:[]});
+    render();
+  });
+  var finalLabel = qs("#f-design-final-label");
+  if(finalLabel) finalLabel.addEventListener("input", function(){ draft.designFinalLabel = this.value; });
+  var optFinalLabel = qs("#f-opt-design-final-label");
+  if(optFinalLabel) optFinalLabel.addEventListener("input", function(){ draft.optionalDesignFinalLabel = this.value; });
+  var reflectionQs = REFLECTIONS_BY_WEEK[currentWeek];
+  if(reflectionQs) reflectionQs.forEach(function(r){
+    var el = qs("#"+r.id);
+    if(el) el.addEventListener("input", function(){ draft[r.field] = this.value; });
+  });
+  wireMediaInputs();
+}
+
+/* Resolves a media "kind" tag (e.g. "opt-attempt", "design-final") to the
+   array it should read/write against in the current draft. Item-level
+   kinds (attempt/design, and their optional-project counterparts) return
+   the specific item object; final-design kinds return the draft itself,
+   since designFinalMedia/optionalDesignFinalMedia live on the draft, not
+   on a per-item array. */
+function mediaOwner(kind, idxAttr){
+  if(kind==="attempt") return draft.debugging[parseInt(idxAttr,10)];
+  if(kind==="opt-attempt") return draft.optionalDebugging[parseInt(idxAttr,10)];
+  if(kind==="design") return draft.design[parseInt(idxAttr,10)];
+  if(kind==="opt-design") return draft.optionalDesign[parseInt(idxAttr,10)];
+  return null;
+}
+
+function wireMediaInputs(){
+  document.querySelectorAll("[data-media-kind]").forEach(function(input){
+    input.addEventListener("change", function(){
+      var files = this.files ? Array.prototype.slice.call(this.files) : [];
+      if(!files.length) return;
+      var kind = this.getAttribute("data-media-kind");
+      var idxAttr = this.getAttribute("data-media-idx");
+      var isFinal = kind==="design-final" || kind==="opt-design-final";
+      var input = this;
+      Promise.all(files.map(function(file){
+        return fileToMediaItem(file).catch(function(err){ return {error: err.message}; });
+      })).then(function(results){
+        var items = [], errors = [];
+        results.forEach(function(r){ if(r.error) errors.push(r.error); else items.push(r); });
+        if(items.length){
+          if(isFinal){
+            var arr = kind==="design-final" ? draft.designFinalMedia : draft.optionalDesignFinalMedia;
+            items.forEach(function(it){ arr.push(it); });
+          } else {
+            var owner = mediaOwner(kind, idxAttr);
+            if(owner){ if(!owner.media) owner.media = []; items.forEach(function(it){ owner.media.push(it); }); }
+          }
+          render();
+        }
+        if(errors.length) showToast(errors[0]);
+        input.value = "";
+      });
+    });
+  });
+  document.querySelectorAll("[data-remove-media]").forEach(function(b){
+    b.addEventListener("click", function(){
+      var key = b.getAttribute("data-remove-media");
+      var mi = parseInt(b.getAttribute("data-media-i"),10);
+      var parts = key.split(":");
+      var kind = parts[0], idxAttr = parts[1];
+      var isFinal = kind==="design-final" || kind==="opt-design-final";
+      if(isFinal){
+        var arr = kind==="design-final" ? draft.designFinalMedia : draft.optionalDesignFinalMedia;
+        arr.splice(mi,1);
+      } else {
+        var owner = mediaOwner(kind, idxAttr);
+        if(owner && owner.media) owner.media.splice(mi,1);
+      }
+      render();
+    });
+  });
+}
+
+function wireDone(){
+  qs("#back-to-weeks").addEventListener("click", function(){ goto("weeks"); });
+  qs("#download-entry").addEventListener("click", function(){ downloadEntry(lastSubmitted); });
+  qs("#share-entry").addEventListener("click", function(){ shareEntry(lastSubmitted); });
+}
+
+function wireEducator(){
+  if(!currentUser){
+    var signinGoogle = qs("#edu-signin-google");
+    if(signinGoogle) signinGoogle.addEventListener("click", signInWithGoogle);
+    var signinMs = qs("#edu-signin-ms");
+    if(signinMs) signinMs.addEventListener("click", signInWithMicrosoft);
+    qs("#edu-back").addEventListener("click", function(){ goto("welcome"); });
+    return;
+  }
+  if(!isEducatorAccount){
+    qs("#edu-back").addEventListener("click", function(){ goto(currentStudent?"weeks":"welcome"); });
+    return;
+  }
+  qs("#edu-sign-out").addEventListener("click", function(){ if(sb) sb.auth.signOut(); });
+  qs("#edu-week-filter").addEventListener("change", function(){ eduFilterWeek=this.value; render(); });
+  qs("#edu-student-filter").addEventListener("change", function(){ eduFilterStudent=this.value; render(); });
+  qs("#edu-export-csv").addEventListener("click", exportCsv);
+  qs("#edu-export-gallery").addEventListener("click", exportGallery);
+  var galleryLink = qs("#edu-gallery-link-top");
+  if(galleryLink) galleryLink.addEventListener("click", function(){ galleryReturnView = "educator"; goto("gallery"); });
+
+  document.querySelectorAll("[data-toggle-detail]").forEach(function(b){
+    b.addEventListener("click", function(){
+      var key = b.getAttribute("data-toggle-detail");
+      var panel = qs('[data-detail-for="'+key+'"]');
+      if(!panel) return;
+      panel.hidden = !panel.hidden;
+      b.textContent = panel.hidden ? "Show all details ↓" : "Hide details ↑";
+    });
+  });
+  document.querySelectorAll("[data-note-for]").forEach(function(t){
+    t.addEventListener("input", function(){
+      var key = this.getAttribute("data-note-for");
+      eduNotesMap[key] = eduNotesMap[key] || {text:"", sentAt:null};
+      eduNotesMap[key].text = this.value;
+    });
+  });
+  document.querySelectorAll("[data-send-note]").forEach(function(b){
+    b.addEventListener("click", function(){
+      var key = b.getAttribute("data-send-note");
+      var box = qs('[data-note-for="'+key+'"]');
+      var studentUserId = box.getAttribute("data-note-user");
+      var week = parseInt(box.getAttribute("data-note-week"),10);
+      var note = eduNotesMap[key] || {text:"", sentAt:null};
+      if(!note.text || !note.text.trim()){ showToast("Write a note first."); return; }
+      sendNote(studentUserId, week, note.text).then(function(ok){
+        if(ok){ showToast("Note sent."); render(); }
+        else showToast("Couldn't send — check your connection and try again.");
+      });
+    });
+  });
+
+  var sumBtn = qs("#edu-summarize-reasons");
+  if(sumBtn) sumBtn.addEventListener("click", function(){ runReasonSummary(); });
+
+  var reflectBtn = qs("#edu-summarize-reflections");
+  if(reflectBtn) reflectBtn.addEventListener("click", function(){ runReflectionSummary(); });
+}
+
+/* A plain-JS synthesis of debugging reasons — no external AI call, so it
+   works fully offline-tolerant and needs no extra API key. Rather than
+   only surfacing the most-picked reason tag, this first lists out every
+   logged attempt (its reason tags plus whatever note the student actually
+   wrote), then synthesizes a short readout from that full listing. */
+var REFLECT_STOPWORDS = {"the":1,"and":1,"that":1,"this":1,"with":1,"from":1,"they":1,"them":1,"their":1,"were":1,"what":1,"when":1,"which":1,"about":1,"because":1,"could":1,"would":1,"should":1,"there":1,"here":1,"very":1,"really":1,"just":1,"still":1,"some":1,"more":1,"most":1,"much":1,"also":1,"than":1,"then":1,"into":1,"over":1,"under":1,"between":1,"during":1,"before":1,"after":1,"again":1,"once":1,"only":1,"even":1,"being":1,"been":1,"have":1,"has":1,"had":1,"did":1,"does":1,"doing":1,"made":1,"make":1,"making":1,"got":1,"get":1,"getting":1,"went":1,"going":1,"felt":1,"feel":1,"feeling":1,"like":1,"today":1,"week":1,"project":1,"thing":1,"things":1,"know":1,"knew":1,"understand":1,"understood":1};
+
+function extractKeywords(text){
+  return (text||"").toLowerCase().replace(/[^a-z0-9'\s]/g," ").split(/\s+/).map(function(w){
+    return w.replace(/^'+|'+$/g, "");
+  }).filter(function(w){
+    return w.length>3 && !REFLECT_STOPWORDS[w];
+  });
+}
+
+function runReasonSummary(){
+  var out = qs("#edu-summary-out");
+  var scoped = eduApplyFilters(allEntries);
+  var attempts = [];
+  var workedCount = 0, stuckCount = 0, attemptTotal = 0;
+  scoped.forEach(function(e){
+    (e.debugging||[]).concat(e.optionalDebugging||[]).forEach(function(a){
+      var reasons = a.reasons||[];
+      var note = (a.note||"").trim();
+      if(a.worked){ attemptTotal++; if(a.worked==="yes") workedCount++; else if(a.worked==="stuck") stuckCount++; }
+      if(!reasons.length && !note) return;
+      attempts.push({student:e.student, week:e.week, worked:a.worked, reasons:reasons, note:note});
+    });
+  });
+  if(!attempts.length){ showToast("No debugging reasons logged yet for this filter."); return; }
+  attempts.sort(function(x,y){ return (x.week-y.week) || x.student.localeCompare(y.student); });
+
+  var listHtml = '<ul class="reflect-list">' + attempts.map(function(a){
+    var tags = a.reasons.length ? esc(a.reasons.join(", ")) : "";
+    var noteHtml = a.note ? '“'+esc(a.note)+'”' : '<span class="hint">(no note written)</span>';
+    return '<li><b>'+esc(a.student)+'</b> (Wk '+a.week+')'+(tags?' — '+tags:'')+': '+noteHtml+'</li>';
+  }).join("") + '</ul>';
+
+  var tally = {}, weeksByReason = {};
+  attempts.forEach(function(a){
+    a.reasons.forEach(function(r){
+      tally[r] = (tally[r]||0)+1;
+      (weeksByReason[r] = weeksByReason[r]||new Set()).add(a.week);
+    });
+  });
+  var ranked = Object.keys(tally).sort(function(a,b){ return tally[b]-tally[a]; });
+  function mentionWord(n){ return n===1 ? "mention" : "mentions"; }
+  var sentences = [];
+  if(ranked.length){
+    var top = ranked.slice(0,3);
+    sentences.push("Across "+attempts.length+" logged attempt"+(attempts.length===1?"":"s")+", the most common tagged issue was \""+esc(top[0])+"\" ("+tally[top[0]]+" "+mentionWord(tally[top[0]])+", weeks "+Array.from(weeksByReason[top[0]]).sort(function(a,b){return a-b;}).join(", ")+").");
+    if(top[1]) sentences.push("Next most common: \""+esc(top[1])+"\""+(top[2] ? ", then \""+esc(top[2])+"\"." : "."));
+  } else {
+    sentences.push("Across "+attempts.length+" logged attempt"+(attempts.length===1?"":"s")+", students didn't pick a reason tag — see the notes above for what actually tripped them up.");
+  }
+  if(attemptTotal){
+    sentences.push(Math.round(100*workedCount/attemptTotal)+"% of logged attempts worked on the first try"+(stuckCount ? ", and "+stuckCount+" were marked as still stuck." : "."));
+  }
+  var noteTally = {};
+  attempts.forEach(function(a){
+    if(!a.note) return;
+    var seen = {};
+    extractKeywords(a.note).forEach(function(w){ if(seen[w]) return; seen[w]=true; noteTally[w]=(noteTally[w]||0)+1; });
+  });
+  var noteRanked = Object.keys(noteTally).filter(function(w){ return noteTally[w]>1; }).sort(function(a,b){ return noteTally[b]-noteTally[a]; });
+  if(noteRanked.length){
+    sentences.push("Reading through their notes, a few words come up again and again: "+noteRanked.slice(0,4).map(esc).join(", ")+".");
+  }
+
+  out.hidden = false;
+  out.innerHTML = listHtml + '<div class="hint" style="margin-top:10px">'+sentences.join(" ")+'</div>';
+}
+
+/* Plain-JS synthesis of the two free-text reflection fields ("one thing
+   that clicked" / "one thing that challenged you") — same no-external-AI
+   approach as runReasonSummary above. Lists out what every student
+   actually wrote for the field, then synthesizes recurring themes from
+   that full listing (rather than only surfacing the single most-repeated
+   word), tallying non-trivial words that repeat across at least two
+   different pages so one wordy entry can't dominate. */
+function synthReflectionField(entries, field, label){
+  var responses = [];
+  entries.forEach(function(e){
+    var text = (e[field]||"").trim();
+    if(!text) return;
+    responses.push({student:e.student, week:e.week, text:text});
+  });
+  if(!responses.length) return '<div class="reflect-block"><b>'+esc(label)+':</b> no pages have filled this in yet.</div>';
+  responses.sort(function(a,b){ return (a.week-b.week) || a.student.localeCompare(b.student); });
+
+  var listHtml = '<ul class="reflect-list">' + responses.map(function(r){
+    return '<li><b>'+esc(r.student)+'</b> (Wk '+r.week+'): “'+esc(r.text)+'”</li>';
+  }).join("") + '</ul>';
+
+  var tally = {};
+  responses.forEach(function(r){
+    var seen = {};
+    extractKeywords(r.text).forEach(function(w){ if(seen[w]) return; seen[w]=true; tally[w]=(tally[w]||0)+1; });
+  });
+  var ranked = Object.keys(tally).filter(function(w){ return tally[w]>1; }).sort(function(a,b){ return tally[b]-tally[a]; });
+  var synthesis;
+  if(!ranked.length){
+    synthesis = responses.length+" page"+(responses.length===1?"":"s")+" answered this, each in their own words &mdash; no shared theme jumped out, worth a skim above to spot patterns by eye.";
+  } else {
+    var top = ranked.slice(0,3);
+    function pageWord(n){ return n===1 ? "page" : "pages"; }
+    var parts = top.map(function(w){ return "“"+esc(w)+"” ("+tally[w]+" "+pageWord(tally[w])+")"; });
+    synthesis = "Reading across all "+responses.length+" response"+(responses.length===1?"":"s")+", recurring themes include "+parts.join(", ")+".";
+  }
+  return '<div class="reflect-block"><b>'+esc(label)+'</b>'+listHtml+'<div class="hint" style="margin-top:6px">'+synthesis+'</div></div>';
+}
+
+function runReflectionSummary(){
+  var out = qs("#edu-reflection-out");
+  var scoped = eduApplyFilters(allEntries);
+  var clicked = synthReflectionField(scoped, "learned", "What clicked");
+  var challenged = synthReflectionField(scoped, "challenged", "What challenged them");
+  out.hidden = false;
+  out.innerHTML = clicked + challenged;
+}
+
+/* ============================= TOAST ============================= */
+var toastTimer = null;
+function showToast(msg){
+  var t = qs(".toast");
+  if(t) t.remove();
+  t = document.createElement("div");
+  t.className = "toast";
+  t.textContent = msg;
+  document.body.appendChild(t);
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function(){ t.remove(); }, 3200);
+}
+
+/* ============================= EXPORT / SHARE ============================= */
+function entryFileName(entry, ext){
+  return "paper-trail_" + entry.student.replace(/[^a-z0-9]+/gi,"-") + "_week" + entry.week + "." + ext;
+}
+
+function offerFile(filename, data, mime){
+  try{
+    var blob = (data instanceof Blob) ? data : new Blob([data], {type: mime || "application/octet-stream"});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 4000);
+    return true;
+  }catch(e2){
+    showToast("Couldn't save a file here.");
+    return false;
+  }
+}
+function downloadEntry(entry){
+  offerFile(entryFileName(entry,"json"), JSON.stringify(entry,null,2), "application/json");
+}
+function shareEntry(entry){
+  var text = entry.student+" — Week "+entry.week+" (My Paper Trail)\nConfidence: "+entry.confidenceBefore+" → "+entry.confidenceAfter+"/5\nLearned: "+entry.learned+"\nChallenged: "+entry.challenged;
+  var blob = new Blob([JSON.stringify(entry,null,2)], {type:"application/json"});
+  var file = new File([blob], entryFileName(entry,"json"), {type:"application/json"});
+  if(navigator.share){
+    var shareData = {title:"My Paper Trail — Week "+entry.week, text:text};
+    if(navigator.canShare && navigator.canShare({files:[file]})) shareData.files = [file];
+    navigator.share(shareData).catch(function(err){
+      if(err && err.name==="AbortError") return;
+      downloadEntry(entry);
+    });
+  } else {
+    downloadEntry(entry);
+  }
+}
+
+function exportCsv(){
+  // snake_case column name for each reflections field, e.g. week2BatteryChange -> week2_battery_change
+  var reflectionCols = REFLECTIONS_ALL_FIELDS.map(reflectionFieldToColumn);
+  var rows = [["student","week","submittedAt","confidence_before","confidence_after","learned","challenged","goal","debugging_worked","debugging_reasons","design_choices","final_design_label","final_design_uploaded"].concat(reflectionCols).concat(["optional_project_attempted"])];
+  allEntries.forEach(function(e){
+    var designList = Array.isArray(e.design) ? e.design : (e.design ? [e.design] : []);
+    var designSummary = designList.map(function(x){ return x.type + (x.note ? (": "+x.note) : ""); }).filter(Boolean).join(" | ");
+    var confAfter = e.confidenceAfter!=null ? e.confidenceAfter : e.confidence;
+    rows.push([
+      e.student, e.week, e.submittedAt||"",
+      e.confidenceBefore||"", confAfter||"",
+      e.learned||"", e.challenged||"", e.goal||"",
+      (e.debugging||[]).map(function(a){return a.worked;}).join("|"),
+      (e.debugging||[]).map(function(a){return (a.reasons||[]).join(";");}).filter(Boolean).join("|"),
+      designSummary, e.designFinalLabel||"", (e.designFinalMedia && e.designFinalMedia.length) ? "yes" : "no"
+    ].concat(REFLECTIONS_ALL_FIELDS.map(function(f){ return e[f]||""; })).concat([
+      e.optionalAttempted ? "yes" : "no"
+    ]));
+  });
+  var csv = rows.map(function(r){
+    return r.map(function(v){ var s=String(v==null?"":v).replace(/"/g,'""'); return /[",\n]/.test(s)?'"'+s+'"':s; }).join(",");
+  }).join("\n");
+  offerFile("paper-trail-export.csv", csv, "text/csv");
+}
+
+function exportGallery(){
+  var cards = allEntries.map(function(e){
+    var photos = [];
+    (e.debugging||[]).forEach(function(a){ (a.media||[]).forEach(function(m){ photos.push({src:m.src, kind:m.kind, cap:"Week "+e.week+" debugging"}); }); });
+    (Array.isArray(e.design)?e.design:[]).forEach(function(x){ (x.media||[]).forEach(function(m){ photos.push({src:m.src, kind:m.kind, cap:"Week "+e.week+" design"}); }); });
+    (e.designFinalMedia||[]).forEach(function(m){ photos.push({src:m.src, kind:m.kind, cap:"Week "+e.week+" final design"+(e.designFinalLabel?" — "+e.designFinalLabel:"")}); });
+    return {student:e.student, week:e.week, photos:photos};
+  }).filter(function(c){ return c.photos.length; });
+  var body = cards.map(function(c){
+    return '<section style="margin-bottom:28px"><h2>'+esc(c.student)+' — Week '+c.week+'</h2><div style="display:flex;flex-wrap:wrap;gap:10px">' +
+      c.photos.map(function(p){
+        var tag = p.kind==="video" ? '<video src="'+p.src+'" style="width:220px;border-radius:6px" controls></video>' : '<img src="'+p.src+'" style="width:220px;border-radius:6px">';
+        return '<figure style="margin:0">'+tag+'<figcaption style="font-size:12px;color:#666">'+esc(p.cap)+'</figcaption></figure>';
+      }).join("") +
+      '</div></section>';
+  }).join("");
+  var html = '<!doctype html><html><head><meta charset="utf-8"><title>My Paper Trail Photo Gallery</title>' +
+    '<style>body{font-family:sans-serif;max-width:900px;margin:30px auto;padding:0 16px;}</style></head><body>' +
+    '<h1>My Paper Trail — Photo Gallery</h1>' + (body || '<p>No photos yet.</p>') + '</body></html>';
+  offerFile("paper-trail-gallery.html", html, "text/html");
+}
+
+/* ============================= SUPABASE DATA LAYER ============================= */
+function rowToEntry(row){
+  var entry = {
+    id: row.id, userId: row.user_id, student: row.student, week: row.week,
+    submittedAt: row.submitted_at, updatedAt: row.updated_at||null,
+    confidenceBefore: row.confidence_before, confidenceAfter: row.confidence_after,
+    learned: row.learned||"", challenged: row.challenged||"", goal: row.goal||"",
+    debugging: (row.debugging||[]).map(migrateMediaItem).map(migrateReasons), design: (row.design||[]).map(migrateMediaItem),
+    designFinalMedia: (row.design_final_media && row.design_final_media.length) ? row.design_final_media : (row.design_final_photo ? [{src:row.design_final_photo, kind:"image"}] : []),
+    designFinalLabel: row.design_final_label||"",
+    optionalAttempted: !!row.optional_attempted,
+    optionalDebugging: (row.optional_debugging||[]).map(migrateMediaItem).map(migrateReasons), optionalDesign: (row.optional_design||[]).map(migrateMediaItem),
+    optionalDesignFinalMedia: (row.optional_design_final_media && row.optional_design_final_media.length) ? row.optional_design_final_media : (row.optional_design_final_photo ? [{src:row.optional_design_final_photo, kind:"image"}] : []),
+    optionalDesignFinalLabel: row.optional_design_final_label||""
+  };
+  REFLECTIONS_ALL_FIELDS.forEach(function(f){ entry[f] = row[reflectionFieldToColumn(f)]||""; });
+  return entry;
+}
+
+function loadAllEntries(){
+  if(!sb) return Promise.resolve();
+  return sb.from("entries").select("*").then(function(res){
+    if(res.error){ return; }
+    allEntries = (res.data||[]).map(rowToEntry);
+  });
+}
+
+function loadProfile(){
+  if(!sb || !currentUser) return Promise.resolve();
+  return sb.from("profiles").select("*").eq("user_id", currentUser.id).maybeSingle().then(function(res){
+    currentProfile = (res && res.data) || null;
+    currentStudent = currentProfile ? (currentProfile.display_name||"") : "";
+  });
+}
+
+function saveProfileName(name){
+  if(!sb || !currentUser) return;
+  sb.from("profiles").upsert({user_id: currentUser.id, display_name: name}, {onConflict:"user_id"}).then(function(res){
+    if(res.error){ showToast("Couldn't save your name — check your connection."); return; }
+    currentProfile = {user_id: currentUser.id, display_name: name};
+    currentStudent = name;
+    goto("weeks");
+  });
+}
+
+function loadMyNotes(){
+  if(!sb || !currentUser) return Promise.resolve();
+  return sb.from("educator_notes").select("*").eq("student_user_id", currentUser.id).then(function(res){
+    myNotesMap = {};
+    (res.data||[]).forEach(function(row){ myNotesMap[row.week] = {text: row.text, sentAt: row.sent_at}; });
+  });
+}
+
+function loadAllNotesForEducator(){
+  if(!sb) return Promise.resolve();
+  return sb.from("educator_notes").select("*").then(function(res){
+    eduNotesMap = {};
+    (res.data||[]).forEach(function(row){
+      eduNotesMap[row.student_user_id+"__"+row.week] = {text: row.text, sentAt: row.sent_at};
+    });
+  });
+}
+
+var backendHealthWarning = null;
+/* A quick, harmless read-only check that every Reflections column the app
+   currently writes to actually exists on this Supabase project. This
+   exact failure mode has bitten this app before (see schema.sql's
+   2026-09-22 migration note): a column gets added to schema.sql, but the
+   live database is never actually migrated, so every submission that
+   touches that column is silently rejected by Postgres, queues locally on
+   the student's own device (see trySaveEntry/flushQueue — nothing is
+   lost), and never reaches the educator dashboard, with no obvious signal
+   anywhere that anything is broken except a small "still trying to sync"
+   banner on that one student's own device. Surfacing it directly on the
+   educator dashboard means a missing migration gets caught immediately —
+   the moment an educator opens the dashboard — instead of discovered
+   later as "why don't any of Sam's Week 2 pages show up?" */
+function checkBackendHealth(){
+  if(!sb) return;
+  // Derived from REFLECTIONS_ALL_FIELDS so this check automatically covers
+  // every Reflections column that currently exists, including any added
+  // after this function was written — no separate list to keep in sync.
+  var cols = REFLECTIONS_ALL_FIELDS.map(reflectionFieldToColumn).join(",");
+  sb.from("entries").select(cols).limit(1).then(function(res){
+    backendHealthWarning = res.error
+      ? "Your database is missing a column student pages need to save (\""+(res.error.message||"unknown error")+"\"). Submissions using it are failing to save right now and are stuck in a retry loop on students' own devices until this is fixed — open schema.sql's migration notes and run its \"alter table ... add column if not exists\" statements in the Supabase SQL Editor."
+      : null;
+    if(routerView==="educator") render();
+  }).catch(function(){ /* a network hiccup here isn't evidence of a schema problem — don't warn on it */ });
+}
+
+function loadEducatorData(){
+  checkBackendHealth();
+  return Promise.all([loadAllEntries(), loadAllNotesForEducator()]);
+}
+
+function sendNote(studentUserId, week, text){
+  if(!sb || !currentUser) return Promise.resolve(false);
+  return sb.from("educator_notes").upsert({
+    student_user_id: studentUserId, week: week, text: text,
+    sent_at: new Date().toISOString(), created_by: currentUser.id
+  }, {onConflict:"student_user_id,week"}).then(function(res){
+    if(res.error) return false;
+    eduNotesMap[studentUserId+"__"+week] = {text:text, sentAt:new Date().toISOString()};
+    return true;
+  }).catch(function(){ return false; });
+}
+
+/* Builds the DB row for an entry, uploading any locally-compressed media
+   (data: URLs — photos and videos) to Supabase Storage first. Never
+   throws — a failed upload just falls back to keeping that one item
+   inline as a data: URL. */
+function buildRow(d){
+  return Promise.all([
+    Promise.all(d.debugging.map(uploadAttemptMedia)),
+    Promise.all(d.design.map(uploadChoiceMedia)),
+    Promise.all((d.optionalDebugging||[]).map(uploadAttemptMedia)),
+    Promise.all((d.optionalDesign||[]).map(uploadChoiceMedia)),
+    uploadMediaArray(d.designFinalMedia),
+    uploadMediaArray(d.optionalDesignFinalMedia)
+  ]).then(function(res){
+    var row = {
+      user_id: d.userId, student: d.student, week: d.week,
+      submitted_at: d.submittedAt,
+      confidence_before: d.confidenceBefore, confidence_after: d.confidenceAfter,
+      learned: d.learned, challenged: d.challenged, goal: d.goal,
+      debugging: res[0], design: res[1],
+      optional_debugging: res[2], optional_design: res[3],
+      design_final_media: res[4], design_final_label: d.designFinalLabel,
+      optional_attempted: !!d.optionalAttempted,
+      optional_design_final_media: res[5], optional_design_final_label: d.optionalDesignFinalLabel
+    };
+    REFLECTIONS_ALL_FIELDS.forEach(function(f){ row[reflectionFieldToColumn(f)] = d[f]||""; });
+    return row;
+  });
+}
+
+/* Attempts to save an entry to Supabase right now. Resolves
+   {ok:true} on success, or {ok:false, offline, reason, error} on failure —
+   callers decide whether/how to queue and what to tell the student.
+   "offline" only means the browser reports no network connection at all
+   (navigator.onLine === false); a request that reaches the server and
+   comes back with an error (bad data, an expired session, a schema
+   mismatch, etc.) is NOT "offline" and must not be reported to the student
+   as if it were — that was the actual reliability bug here: every failure,
+   transient or permanent, got the same reassuring "you're offline, will
+   sync automatically" message, so a permanent failure (e.g. a stale/expired
+   session producing a null user id, which can never satisfy the entries
+   table's not-null + RLS constraints no matter how many times it retries)
+   silently sat in the local queue forever while the student believed it
+   had saved. */
+function trySaveEntry(d){
+  if(!sb) return Promise.resolve({ok:false, offline:true, reason:"no-backend"});
+  if(!d.userId) return Promise.resolve({ok:false, offline:false, reason:"no-user"});
+  return buildRow(d).then(function(row){
+    return sb.from("entries").upsert(row, {onConflict:"user_id,week"}).select().then(function(res){
+      if(res.error){
+        console.error("[paper-trail] save failed:", res.error);
+        return {ok:false, offline: (typeof navigator!=="undefined" && navigator.onLine===false), reason:"db-error", error:res.error};
+      }
+      // Read back the row Supabase actually stored (not just what we sent)
+      // so a saved entry is verified against what the server has, not
+      // just assumed from the outgoing payload.
+      var saved = (res.data && res.data[0]) || row;
+      allEntries = allEntries.filter(function(e){ return !(e.userId===row.user_id && e.week===row.week); });
+      allEntries.push(rowToEntry(saved));
+      return {ok:true};
+    });
+  }).catch(function(err){
+    console.error("[paper-trail] save threw:", err);
+    return {ok:false, offline: (typeof navigator!=="undefined" && navigator.onLine===false), reason:"exception", error:err};
+  });
+}
+
+function flushQueue(){
+  if(!sb || !currentUser) return Promise.resolve();
+  var q = loadQueue();
+  if(!q.length) return Promise.resolve();
+  var remaining = [];
+  var chain = Promise.resolve();
+  q.forEach(function(item){
+    chain = chain.then(function(){
+      // A queued item saved under a since-invalidated user id (see
+      // "no-user" above) can never succeed on its own — reattach the
+      // current session's user id before retrying, since it's virtually
+      // always the same student's own device queue.
+      if(!item.userId && currentUser) item.userId = currentUser.id;
+      return trySaveEntry(item).then(function(res){ if(!res.ok) remaining.push(item); });
+    });
+  });
+  return chain.then(function(){
+    saveQueue(remaining);
+    if(remaining.length < q.length){
+      return loadAllEntries().then(function(){
+        if(["weeks","gallery","educator","done"].indexOf(routerView)>=0) render();
+      });
+    }
+  });
+}
+setInterval(flushQueue, 30000);
+window.addEventListener("online", flushQueue);
+
+/* ============================= AUTH / BOOT ============================= */
+function handleAuthChange(){
+  if(!currentUser){
+    currentProfile = null; currentStudent = ""; isEducatorAccount = false;
+    goto("welcome");
+    return Promise.resolve();
+  }
+  return Promise.all([
+    loadProfile(),
+    loadAllEntries(),
+    loadMyNotes(),
+    sb.rpc("am_i_educator").then(function(res){ isEducatorAccount = !!(res && res.data); }).catch(function(){ isEducatorAccount = false; })
+  ]).then(function(){
+    flushQueue();
+    if(isEducatorAccount){
+      // Educator accounts go straight to their dashboard — that's the
+      // whole point of gating it behind Microsoft + the educators
+      // allowlist: it's a separate side of the app, not something you
+      // pass through a student sign-up flow to reach.
+      return loadEducatorData().then(function(){ goto("educator"); });
+    }
+    // Students sign in with Google only; Microsoft is reserved for
+    // educators (educators may use either Google or Microsoft — that's
+    // handled above by the is_educator() check, which runs regardless of
+    // provider). A non-educator account that signed in some other way
+    // (e.g. someone tried "For educators" with a personal Microsoft
+    // account that isn't on the allowlist) doesn't fall through to the
+    // student flow — it's signed back out.
+    var provider = currentUser.app_metadata && currentUser.app_metadata.provider;
+    if(provider && provider!=="google"){
+      sb.auth.signOut();
+      showToast("This app is for students signed in with Google. Educators can sign in with Google or Microsoft once added to the educator list.");
+      goto("welcome");
+      return;
+    }
+    if(!currentProfile || !currentProfile.display_name){
+      nameDraft = "";
+      goto("setup-name");
+    } else {
+      goto("weeks");
+    }
+  });
+}
+
+function boot(){
+  wireLightboxOnce();
+  if(!sb){ goto("welcome"); return; }
+  sb.auth.onAuthStateChange(function(event, session){
+    currentUser = session ? session.user : null;
+    stripAuthParamsFromUrl();
+    handleAuthChange();
+  });
+  sb.auth.getSession().then(function(res){
+    currentUser = (res.data && res.data.session) ? res.data.session.user : null;
+    stripAuthParamsFromUrl();
+    handleAuthChange();
+  });
+  sb.channel("public:entries")
+    .on("postgres_changes", {event:"*", schema:"public", table:"entries"}, function(){
+      loadAllEntries().then(function(){
+        if(["weeks","gallery","educator"].indexOf(routerView)>=0) render();
+      });
+    })
+    .subscribe();
+  sb.channel("public:educator_notes")
+    .on("postgres_changes", {event:"*", schema:"public", table:"educator_notes"}, function(){
+      loadMyNotes().then(function(){ if(["weeks","done"].indexOf(routerView)>=0) render(); });
+      if(isEducatorAccount){ loadAllNotesForEducator().then(function(){ if(routerView==="educator") render(); }); }
+    })
+    .subscribe();
+}
+
+render(); // show the loading state immediately
+boot();
+
+})();
+</script>
+</body>
+</html>
