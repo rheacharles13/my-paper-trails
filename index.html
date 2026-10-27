@@ -239,6 +239,28 @@
   .level-band.Advanced{ background:var(--accent-2); }
   .level-band.Application{ background:var(--accent); }
 
+  .week-status{ display:flex; gap:5px; flex-wrap:wrap; margin-top:8px; }
+  .status-pill{
+    display:inline-flex; align-items:center; gap:4px; padding:3px 7px; border-radius:999px;
+    background:var(--ground); color:var(--ink-soft); font-size:0.62rem; font-weight:700;
+  }
+  .status-pill.done{ background:var(--accent-bg); color:var(--accent-dark); }
+  .part-list{ display:grid; gap:14px; margin-top:16px; }
+  .part-card{
+    width:100%; text-align:left; border:1.5px solid var(--border); border-radius:12px;
+    background:#fff; color:var(--ink); padding:17px; cursor:pointer;
+  }
+  .part-card:hover{ border-color:var(--accent); background:var(--accent-bg); }
+  .part-card:active{ transform:scale(0.99); }
+  .part-card[disabled]{ cursor:not-allowed; opacity:.58; transform:none; }
+  .part-card-head{ display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:6px; }
+  .part-kicker{ color:var(--accent-dark); font-size:.72rem; font-weight:800; letter-spacing:.04em; text-transform:uppercase; }
+  .part-title{ font-size:1.08rem; font-weight:750; margin-top:2px; }
+  .part-meta{ font-size:.8rem; color:var(--ink-soft); line-height:1.45; margin:0; }
+  .part-status{ flex:0 0 auto; font-size:.7rem; font-weight:750; padding:5px 8px; border-radius:999px; background:var(--ground); color:var(--ink-soft); }
+  .part-status.done{ background:var(--accent); color:#fff; }
+  .part-banner{ background:var(--accent-bg); border:1px solid var(--accent-3); border-radius:9px; padding:11px 12px; margin:12px 0 14px; font-size:.82rem; color:var(--accent-dark); }
+
   .echo{
     background:var(--accent-bg); border:1px solid var(--accent-3); border-radius:8px;
     padding:10px 12px; font-size:0.82rem; color:var(--ink-soft); margin-bottom:14px;
@@ -390,9 +412,14 @@ var REFLECTIONS_BY_WEEK = {
     {field:"week4LedBrightness", id:"f-week4-led-brightness", short:"How the LED's brightness changes", label:"Explain how the LED changes brightness. What is happening inside the circuit?", placeholder:"e.g. The transistor acts like a switch, so how far I turn the dial changes how much current gets through to the LED"}
   ]
 };
+var PART2_GENERIC_REFLECTIONS = [
+  {field:"optionalReflectionLearned", id:"f-optional-reflection-learned", short:"What changed through iteration", label:"What changed in your project as you tested and iterated?", placeholder:"e.g. I moved the copper tape so the connection would stay closed"},
+  {field:"optionalReflectionNext", id:"f-optional-reflection-next", short:"What you would try next", label:"If you had more time, what would you try or improve next?", placeholder:"e.g. I would add another LED and make the switch easier to press"}
+];
+function reflectionsForWeek(week){ return REFLECTIONS_BY_WEEK[week] || PART2_GENERIC_REFLECTIONS; }
 var REFLECTIONS_ALL_FIELDS = Object.keys(REFLECTIONS_BY_WEEK).reduce(function(acc, w){
   return acc.concat(REFLECTIONS_BY_WEEK[w].map(function(r){ return r.field; }));
-}, []);
+}, []).concat(PART2_GENERIC_REFLECTIONS.map(function(r){ return r.field; }));
 /* Shared camelCase draft-field <-> snake_case Postgres-column conversion
    for every Reflections field, so adding a week's questions to
    REFLECTIONS_BY_WEEK above is enough on its own — buildRow(), rowToEntry(),
@@ -538,10 +565,12 @@ var eduNotesMap = {};        // "<user_id>__<week>" -> {text, sentAt} for educat
 var draft = null;          // in-progress entry object
 var currentWeek = null;
 var lastSubmitted = null;  // for the "done" screen
+var lastSubmittedPart = 1;
 var eduFilterWeek = "all";
 var eduFilterStudent = "all";
 var entryStep = 0; // 0 = Documentation, 1 = Debugging, 2 = Design
-var STEP_LABELS = ["Documentation","Debugging","Design"];
+var entryPart = 1;
+var PART_STEP_LABELS = {1:["Documentation","Debugging","Design"], 2:["Debugging","Design + reflect"]};
 var nameDraft = "";
 
 /* ============================= ICONS ============================= */
@@ -562,6 +591,7 @@ function render(){
   else if(view==="welcome") html = renderWelcome();
   else if(view==="setup-name") html = renderSetupName();
   else if(view==="weeks") html = renderWeeks();
+  else if(view==="parts") html = renderParts();
   else if(view==="entry") html = renderEntryView();
   else if(view==="done") html = renderDone();
   else if(view==="educator") html = renderEducator();
@@ -623,8 +653,12 @@ function renderSetupName(){
 /* ============================= WEEK PICKER ============================= */
 function renderWeeks(){
   var mine = myEntries();
+  var entriesByWeek = {};
   var doneWeeks = {};
-  mine.forEach(function(e){ doneWeeks[e.week] = true; });
+  mine.forEach(function(e){
+    entriesByWeek[e.week] = e;
+    if(e.part1SubmittedAt) doneWeeks[e.week] = true;
+  });
   var doneCount = Object.keys(doneWeeks).length;
 
   // Anything still sitting in this device's local queue hasn't actually
@@ -641,7 +675,9 @@ function renderWeeks(){
   ) : "";
 
   var tiles = CURRICULUM.map(function(c){
+    var entry = entriesByWeek[c.week];
     var isDone = !!doneWeeks[c.week];
+    var part2Done = !!(entry && entry.part2SubmittedAt);
     var hasNote = !!(myNotesMap[c.week] && myNotesMap[c.week].sentAt);
     return (
       '<button class="week-tile'+(isDone?" done":"")+'" data-week="'+c.week+'" type="button">' +
@@ -650,6 +686,10 @@ function renderWeeks(){
         '<div class="wk-num">Week '+c.week+'</div>' +
         '<div class="wk-topic">'+esc(c.topic)+'</div>' +
         '<div class="wk-level">'+esc(c.level)+'</div>' +
+        '<div class="week-status">' +
+          '<span class="status-pill'+(isDone?' done':'')+'">Part 1 '+(isDone?'✓':'open')+'</span>' +
+          (c.project ? '<span class="status-pill'+(part2Done?' done':'')+'">Part 2 '+(part2Done?'✓':'optional')+'</span>' : '') +
+        '</div>' +
         '<div class="level-band '+c.level+'"></div>' +
       '</button>'
     );
@@ -670,11 +710,44 @@ function renderWeeks(){
     '</div>' +
     '<button class="btn-gallery" id="gallery-link-top" type="button">'+ICON_GALLERY+' See the class gallery</button>' +
     unsyncedBanner +
-    '<h2>Pick this week’s page</h2>' +
-    '<p>'+doneCount+' of 10 pages filled in so far.</p>' +
+    '<h2>Pick this week</h2>' +
+    '<p>'+doneCount+' of 10 in-class sections submitted.</p>' +
     '<div class="week-grid">'+tiles+'</div>' +
     notesHtml +
     '<footer class="mini"><a href="#" id="edu-link2">For educators &rarr;</a></footer>'
+  );
+}
+
+/* ============================= WEEK PARTS ============================= */
+function renderParts(){
+  var c = curriculumFor(currentWeek);
+  var part1Done = !!draft.part1SubmittedAt;
+  var part2Done = !!draft.part2SubmittedAt;
+  var part2Card = c.project ? (
+    '<button class="part-card" id="open-part-2" type="button">' +
+      '<div class="part-card-head"><div><div class="part-kicker">Part 2 · Out of class</div><div class="part-title">Optional project: '+esc(c.project)+'</div></div>' +
+      '<span class="part-status'+(part2Done?' done':'')+'">'+(part2Done?'Submitted':'Optional')+'</span></div>' +
+      '<p class="part-meta">Iterative debugging, design, a final gallery upload, and reflection. Due Monday at midnight before Tuesday’s session.</p>' +
+    '</button>'
+  ) : (
+    '<button class="part-card" type="button" disabled>' +
+      '<div class="part-card-head"><div><div class="part-kicker">Part 2 · Out of class</div><div class="part-title">No optional project this week</div></div></div>' +
+      '<p class="part-meta">This week only includes the in-class journal.</p>' +
+    '</button>'
+  );
+  return (
+    '<div class="topbar"><button class="icon-btn" id="parts-back-weeks" type="button">&larr; Weeks</button><span class="hint" style="margin:0">Week '+currentWeek+' of 10</span></div>' +
+    traceSvg() +
+    '<h2>'+esc(c.topic)+'</h2>' +
+    '<p>Choose the section you’re working on. Part 2 stays available whether or not Part 1 has been submitted.</p>' +
+    '<div class="part-list">' +
+      '<button class="part-card" id="open-part-1" type="button">' +
+        '<div class="part-card-head"><div><div class="part-kicker">Part 1 · In class</div><div class="part-title">Class journal</div></div>' +
+        '<span class="part-status'+(part1Done?' done':'')+'">'+(part1Done?'Submitted':'Recommended')+'</span></div>' +
+        '<p class="part-meta">Documentation, debugging, and design from today’s class. We recommend submitting before class ends.</p>' +
+      '</button>' +
+      part2Card +
+    '</div>'
   );
 }
 
@@ -685,7 +758,7 @@ function renderGallery(){
     (e.designFinalMedia||[]).forEach(function(m){
       (byWeek[e.week]=byWeek[e.week]||[]).push({src:m.src, kind:m.kind, student:e.student, label:e.designFinalLabel||"", tag:""});
     });
-    if(e.optionalAttempted){
+    if(e.optionalAttempted && e.part2SubmittedAt){
       var c = curriculumFor(e.week);
       (e.optionalDesignFinalMedia||[]).forEach(function(m){
         (byWeek[e.week]=byWeek[e.week]||[]).push({src:m.src, kind:m.kind, student:e.student, label:e.optionalDesignFinalLabel||"", tag:(c&&c.project)||"Optional project"});
@@ -722,7 +795,8 @@ function renderGallery(){
 /* ============================= ENTRY FORM ============================= */
 function freshDraft(week){
   var d = {
-    id: uid(), student: currentStudent, week: week, submittedAt: null, updatedAt: null,
+    id: uid(), student: currentStudent, week: week, submittedAt: null,
+    part1SubmittedAt: null, part2SubmittedAt: null, updatedAt: null,
     confidenceBefore: 0, confidenceAfter: 0,
     learned: "", challenged: "", goal: "",
     debugging: [ {worked:"", reasons:[], note:"", media:[]} ],
@@ -760,6 +834,7 @@ function migrateReasons(item){
 
 function normalizeDraft(d){
   if(d.updatedAt===undefined) d.updatedAt = null;
+  if(d.part1SubmittedAt===undefined) d.part1SubmittedAt = d.submittedAt || null;
   if(d.confidenceBefore===undefined){
     d.confidenceBefore = 0;
     d.confidenceAfter = d.confidence || 0;
@@ -787,6 +862,7 @@ function normalizeDraft(d){
   REFLECTIONS_ALL_FIELDS.forEach(function(f){ if(d[f]===undefined) d[f] = ""; });
 
   if(d.optionalAttempted===undefined) d.optionalAttempted = false;
+  if(d.part2SubmittedAt===undefined) d.part2SubmittedAt = d.optionalAttempted ? (d.submittedAt || null) : null;
   if(!d.optionalDebugging || !d.optionalDebugging.length) d.optionalDebugging = [ {worked:"", reasons:[], note:"", media:[]} ];
   d.optionalDebugging.forEach(migrateMediaItem);
   d.optionalDebugging.forEach(migrateReasons);
@@ -832,42 +908,40 @@ function previousEntryFor(week){
 function renderEntryView(){
   var c = curriculumFor(currentWeek);
   var d = draft;
+  var labels = PART_STEP_LABELS[entryPart];
 
-  var tabsHtml = '<div class="step-nav">' + STEP_LABELS.map(function(label, i){
-    var cls = "step-tab" + (i===entryStep?" current":"") + (sectionComplete(d,i)?" done":"");
+  var tabsHtml = '<div class="step-nav">' + labels.map(function(label, i){
+    var cls = "step-tab" + (i===entryStep?" current":"") + (sectionComplete(d,i,entryPart)?" done":"");
     return '<button type="button" class="'+cls+'" data-step="'+i+'"><span class="dot"></span>'+label+'</button>';
   }).join("") + '</div>';
 
-  var stepBody = entryStep===0 ? renderDocStep(d) : entryStep===1 ? renderDebugStep(d) : renderDesignStep(d);
+  var stepBody;
+  if(entryPart===1) stepBody = entryStep===0 ? renderDocStep(d) : entryStep===1 ? renderDebugStep(d,1) : renderDesignStep(d,1);
+  else stepBody = entryStep===0 ? renderDebugStep(d,2) : renderDesignStep(d,2);
 
   var navButtons;
-  if(entryStep===0){
+  if(entryPart===1 && entryStep===0){
     navButtons = '<button class="btn" id="next-step" type="button">Next: Debugging</button>';
-  } else if(entryStep===1){
+  } else if(entryPart===1 && entryStep===1){
     navButtons = '<div class="btn-row"><button class="btn secondary" id="prev-step" type="button">Back</button><button class="btn" id="next-step" type="button">Next: Design</button></div>';
+  } else if(entryPart===2 && entryStep===0){
+    navButtons = '<button class="btn" id="next-step" type="button">Next: Design + reflect</button>';
   } else {
-    navButtons = '<div class="btn-row"><button class="btn secondary" id="prev-step" type="button">Back</button><button class="btn" id="submit-entry" type="button">Save today’s page</button></div>';
+    navButtons = '<div class="btn-row"><button class="btn secondary" id="prev-step" type="button">Back</button><button class="btn" id="submit-entry" type="button">Submit Part '+entryPart+'</button></div>';
   }
 
-  var optionalToggle = (c.project && entryStep!==0) ? (
-    '<div class="switch-row">' +
-      '<label class="switch-label" for="optional-toggle">Did you attempt the optional project this week?</label>' +
-      '<button type="button" class="switch'+(d.optionalAttempted?" on":"")+'" id="optional-toggle" role="switch" aria-checked="'+(d.optionalAttempted?"true":"false")+'"><span class="switch-knob"></span></button>' +
-    '</div>'
-  ) : "";
-
-  var activityText = (currentWeek===1 && entryStep===2) ? "Time to create! Let's make a LED card with a switch for each color." : (currentWeek===1 ? "" : c.activity);
+  var activityText = entryPart===2 ? c.project : ((currentWeek===1 && entryStep===2) ? "Time to create! Let's make a LED card with a switch for each color." : (currentWeek===1 ? "" : c.activity));
   var activityHtml = activityText ? '<p class="section-sub">'+esc(activityText)+'</p>' : "";
 
   return (
     '<div class="topbar">' +
-      '<button class="icon-btn" id="back-weeks" type="button">&larr; Weeks</button>' +
-      '<span class="hint" style="margin:0">Week '+currentWeek+' of 10</span>' +
+      '<button class="icon-btn" id="back-parts" type="button">&larr; Week overview</button>' +
+      '<span class="hint" style="margin:0">Part '+entryPart+' of 2</span>' +
     '</div>' +
+    '<div class="part-banner"><b>'+(entryPart===1?'In class':'Optional · Out of class')+'</b> · '+(entryPart===1?'Submit before class ends.':'Due Monday at midnight before Tuesday’s session.')+'</div>' +
     tabsHtml +
     '<h2>'+esc(c.topic)+'</h2>' +
     activityHtml +
-    optionalToggle +
     stepBody +
     navButtons
   );
@@ -920,7 +994,7 @@ function renderDocStep(d){
   );
 }
 
-function renderDebugStep(d){
+function renderDebugStep(d, part){
   var c = curriculumFor(currentWeek);
   var debuggingHtml = d.debugging.map(function(att, i){ return renderAttempt(att, i, d.debugging.length, false); }).join("");
   var mainCard = (
@@ -933,7 +1007,7 @@ function renderDebugStep(d){
   );
 
   var optionalCard = "";
-  if(d.optionalAttempted && c.project){
+  if(c.project){
     var optDebugging = d.optionalDebugging;
     var optHtml = optDebugging.map(function(att, i){ return renderAttempt(att, i, optDebugging.length, true); }).join("");
     optionalCard = (
@@ -946,18 +1020,18 @@ function renderDebugStep(d){
       '</div>'
     );
   }
-  return mainCard + optionalCard;
+  return part===2 ? optionalCard : mainCard;
 }
 
-function renderDesignStep(d){
+function renderDesignStep(d, part){
   var c = curriculumFor(currentWeek);
   var mainCard = renderDesignCard(d.design, d.designFinalMedia, d.designFinalLabel, "design", "Design", "A design choice you made, saw, or want to try &mdash; add as many as you like.", false, null, "", null, false);
   var optionalCard = "";
-  if(d.optionalAttempted && c.project){
+  if(c.project){
     optionalCard = renderDesignCard(d.optionalDesign, d.optionalDesignFinalMedia, d.optionalDesignFinalLabel, "opt-design", "Design", "A design choice for your optional project &mdash; made, saw, or want to try.", true, c.project, "", "Submit interactive project", true);
   }
   var reflectionsCard = "";
-  var reflectionQs = REFLECTIONS_BY_WEEK[currentWeek];
+  var reflectionQs = reflectionsForWeek(currentWeek);
   if(reflectionQs){
     reflectionsCard = (
       '<div class="card">' +
@@ -974,7 +1048,7 @@ function renderDesignStep(d){
       '</div>'
     );
   }
-  return mainCard + optionalCard + reflectionsCard;
+  return part===2 ? optionalCard + reflectionsCard : mainCard;
 }
 
 function renderDesignCard(entries, finalMediaData, finalLabelData, prefix, headingHtml, subText, optional, projectLabel, extraHtml, finalHeading, showFinal){
@@ -1031,7 +1105,13 @@ function updateStepTabs(){
   });
 }
 
-function sectionComplete(d, idx){
+function sectionComplete(d, idx, part){
+  part = part || entryPart;
+  if(part===2){
+    if(idx===0) return d.optionalDebugging.some(function(a){ return a.worked!==""; });
+    if(idx===1) return d.optionalDesign.some(function(e){ return e.type!=="" && e.note.trim().length>0; });
+    return false;
+  }
   if(idx===0) return d.confidenceBefore>0 && d.confidenceAfter>0 && d.learned.trim().length>0;
   if(idx===1) return d.debugging.some(function(a){ return a.worked!==""; });
   if(idx===2) return d.design.some(function(e){ return e.type!=="" && e.note.trim().length>0; });
@@ -1101,19 +1181,23 @@ function renderMediaSlot(kind, idx, mediaArr, label, sub){
 
 /* ============================= DONE ============================= */
 function renderDone(){
-  var doneCount = Object.keys(myEntries().reduce(function(acc,e){acc[e.week]=1;return acc;},{})).length;
+  var doneCount = Object.keys(myEntries().reduce(function(acc,e){if(e.part1SubmittedAt) acc[e.week]=1;return acc;},{})).length;
+  var c = curriculumFor(currentWeek);
+  var isPart1 = lastSubmittedPart===1;
   return (
     '<div class="streak">' +
       '<div class="big">'+doneCount+' / 10</div>' +
       '<div class="cap">pages filled in</div>' +
     '</div>' +
     traceSvg() +
-    '<h2 style="text-align:center">Page saved.</h2>' +
-    '<p style="text-align:center">Nice work, '+esc(currentStudent)+'. See you next week.</p>' +
+    '<h2 style="text-align:center">Part '+lastSubmittedPart+' submitted.</h2>' +
+    '<p style="text-align:center">'+(isPart1 ? 'Your in-class journal is in. You can start the optional project now or come back later.' : 'Your optional project and reflection are in, and your final upload is ready for the class gallery.')+'</p>' +
     '<div class="btn-row" style="flex-direction:column">' +
-      '<button class="btn" id="share-entry" type="button">Send to my educator</button>' +
+      (isPart1 && c && c.project ? '<button class="btn" id="continue-part-2" type="button">Open optional Part 2</button>' : '') +
+      (!isPart1 ? '<button class="btn" id="done-gallery" type="button">See the class gallery</button>' : '') +
+      '<button class="btn secondary" id="share-entry" type="button">Send to my educator</button>' +
       '<button class="btn secondary" id="download-entry" type="button">Download this page</button>' +
-      '<button class="btn ghost" id="back-to-weeks" type="button">Back to my journal</button>' +
+      '<button class="btn ghost" id="back-to-parts" type="button">Back to week overview</button>' +
     '</div>'
   );
 }
@@ -1189,7 +1273,7 @@ function renderEducator(){
     (e.debugging||[]).forEach(function(a){ (a.media||[]).forEach(function(m){ thumbs.push(m); }); });
     (Array.isArray(e.design)?e.design:[]).forEach(function(x){ (x.media||[]).forEach(function(m){ thumbs.push(m); }); });
     (e.designFinalMedia||[]).forEach(function(m){ thumbs.push(m); });
-    if(e.optionalAttempted){
+    if(e.optionalAttempted && e.part2SubmittedAt){
       (e.optionalDebugging||[]).forEach(function(a){ (a.media||[]).forEach(function(m){ thumbs.push(m); }); });
       (Array.isArray(e.optionalDesign)?e.optionalDesign:[]).forEach(function(x){ (x.media||[]).forEach(function(m){ thumbs.push(m); }); });
       (e.optionalDesignFinalMedia||[]).forEach(function(m){ thumbs.push(m); });
@@ -1206,6 +1290,8 @@ function renderEducator(){
     return (
       '<div class="entry-row">' +
         '<div class="top"><span class="who">'+esc(e.student)+' &middot; Wk '+e.week+'</span><span class="when">'+((e.updatedAt||e.submittedAt)?"Last saved "+fmtDate(e.updatedAt||e.submittedAt):"")+'</span></div>' +
+        '<div class="week-status" style="margin:0 0 7px"><span class="status-pill'+(e.part1SubmittedAt?' done':'')+'">Part 1 '+(e.part1SubmittedAt?'submitted':'not submitted')+'</span>' +
+          '<span class="status-pill'+(e.part2SubmittedAt?' done':'')+'">Part 2 '+(e.part2SubmittedAt?'submitted':'not submitted')+'</span></div>' +
         '<div class="hint" style="margin:0 0 4px">Confidence: '+(confBefore||"–")+' &rarr; '+(confAfter||"–")+'/5</div>' +
         (e.learned ? '<div>“'+esc(e.learned)+'”</div>' : '') +
         thumbsHtml +
@@ -1293,33 +1379,34 @@ function renderEntryDetail(e){
   }
 
   var reflectionsHtml = "";
-  var reflectionQsDetail = REFLECTIONS_BY_WEEK[e.week];
+  var reflectionQsDetail = reflectionsForWeek(e.week);
   if(reflectionQsDetail){
     var reflectionRows = reflectionQsDetail.map(function(r, i){
       return e[r.field] ? '<div'+(i>0?' style="margin-top:4px"':'')+'><b>'+esc(r.short)+':</b> '+esc(e[r.field])+'</div>' : '';
     }).join("");
     if(reflectionRows) reflectionsHtml = '<div class="detail-item">'+reflectionRows+'</div>';
   }
-  var mainDesignHtml = choiceRows(e.design) + finalRow(e.designFinalMedia, e.designFinalLabel) + reflectionsHtml;
+  var mainDesignHtml = choiceRows(e.design) + finalRow(e.designFinalMedia, e.designFinalLabel);
   var optionalHtml = "";
-  if(e.optionalAttempted && c && c.project){
+  if(e.optionalAttempted && e.part2SubmittedAt && c && c.project){
     optionalHtml = (
-      '<div class="detail-block"><div class="detail-block-head">Optional project &mdash; '+esc(c.project)+'</div>' +
+      '<div class="detail-block"><div class="detail-block-head">Part 2 &middot; Optional project &mdash; '+esc(c.project)+'</div>' +
         attemptRows(e.optionalDebugging) +
         choiceRows(e.optionalDesign) +
         finalRow(e.optionalDesignFinalMedia, e.optionalDesignFinalLabel) +
+        reflectionsHtml +
       '</div>'
     );
   }
 
   return (
-    '<div class="detail-block">' +
+    '<div class="detail-block"><div class="detail-block-head">Part 1 &middot; In class</div>' +
       '<div class="hint" style="margin:0 0 4px">Confidence before: '+(confBefore||"–")+'/5 &nbsp;&middot;&nbsp; after: '+(confAfter||"–")+'/5</div>' +
       (e.challenged ? '<div class="hint">Challenge: '+esc(e.challenged)+'</div>' : '') +
       (e.goal ? '<div class="hint">Goal/next step: '+esc(e.goal)+'</div>' : '') +
     '</div>' +
-    '<div class="detail-block"><div class="detail-block-head">Debugging</div>' + (attemptRows(e.debugging) || '<p class="hint">No attempts logged.</p>') + '</div>' +
-    '<div class="detail-block"><div class="detail-block-head">Design</div>' + (mainDesignHtml || '<p class="hint">No design choices logged.</p>') + '</div>' +
+    '<div class="detail-block"><div class="detail-block-head">Part 1 debugging</div>' + (attemptRows(e.debugging) || '<p class="hint">No attempts logged.</p>') + '</div>' +
+    '<div class="detail-block"><div class="detail-block-head">Part 1 design</div>' + (mainDesignHtml || '<p class="hint">No design choices logged.</p>') + '</div>' +
     optionalHtml
   );
 }
@@ -1329,6 +1416,7 @@ function wireView(view){
   if(view==="welcome") wireWelcome();
   else if(view==="setup-name") wireSetupName();
   else if(view==="weeks") wireWeeks();
+  else if(view==="parts") wireParts();
   else if(view==="entry") wireEntry();
   else if(view==="done") wireDone();
   else if(view==="educator") wireEducator();
@@ -1486,8 +1574,7 @@ function wireWeeks(){
       currentWeek = parseInt(b.getAttribute("data-week"),10);
       var existing = myEntries().filter(function(e){return e.week===currentWeek;});
       draft = normalizeDraft(existing.length ? JSON.parse(JSON.stringify(existing[existing.length-1])) : freshDraft(currentWeek));
-      entryStep = 0;
-      goto("entry");
+      goto("parts");
     });
   });
   var edu = qs("#edu-link2");
@@ -1500,29 +1587,30 @@ function wireWeeks(){
   if(galleryLink) galleryLink.addEventListener("click", function(){ galleryReturnView = "weeks"; goto("gallery"); });
 }
 
-function wireEntry(){
-  qs("#back-weeks").addEventListener("click", function(){ goto("weeks"); });
-
-  var optToggle = qs("#optional-toggle");
-  if(optToggle) optToggle.addEventListener("click", function(){
-    draft.optionalAttempted = !draft.optionalAttempted;
-    if(draft.optionalAttempted){
-      if(!draft.optionalDebugging || !draft.optionalDebugging.length) draft.optionalDebugging = [{worked:"", reasons:[], note:"", media:[]}];
-      if(!draft.optionalDesign || !draft.optionalDesign.length) draft.optionalDesign = [{type:"", note:"", media:[]}];
-    }
-    render();
+function wireParts(){
+  qs("#parts-back-weeks").addEventListener("click", function(){ goto("weeks"); });
+  qs("#open-part-1").addEventListener("click", function(){
+    entryPart = 1; entryStep = 0; goto("entry");
   });
+  var part2 = qs("#open-part-2");
+  if(part2) part2.addEventListener("click", function(){
+    entryPart = 2; entryStep = 0; draft.optionalAttempted = true; goto("entry");
+  });
+}
+
+function wireEntry(){
+  qs("#back-parts").addEventListener("click", function(){ goto("parts"); });
 
   document.querySelectorAll(".step-tab").forEach(function(b){
     b.addEventListener("click", function(){ entryStep = parseInt(b.getAttribute("data-step"),10); window.scrollTo(0,0); render(); });
   });
   var nextBtn = qs("#next-step");
-  if(nextBtn) nextBtn.addEventListener("click", function(){ entryStep = Math.min(2, entryStep+1); window.scrollTo(0,0); render(); });
+  if(nextBtn) nextBtn.addEventListener("click", function(){ entryStep = Math.min(PART_STEP_LABELS[entryPart].length-1, entryStep+1); window.scrollTo(0,0); render(); });
   var prevBtn = qs("#prev-step");
   if(prevBtn) prevBtn.addEventListener("click", function(){ entryStep = Math.max(0, entryStep-1); window.scrollTo(0,0); render(); });
 
-  if(entryStep===0) wireDocStep();
-  else if(entryStep===1) wireDebugStep();
+  if(entryPart===1 && entryStep===0) wireDocStep();
+  else if((entryPart===1 && entryStep===1) || (entryPart===2 && entryStep===0)) wireDebugStep();
   else wireDesignStep();
 
   var submitBtn = qs("#submit-entry");
@@ -1531,8 +1619,11 @@ function wireEntry(){
     // save whatever they have so far, come back later, and keep editing,
     // adding, or deleting anything (text, attempts, design choices,
     // photos/videos) at any time. Nothing here blocks an incomplete save.
-    if(!draft.submittedAt) draft.submittedAt = new Date().toISOString();
-    draft.updatedAt = new Date().toISOString();
+    var submittedNow = new Date().toISOString();
+    if(!draft.submittedAt) draft.submittedAt = submittedNow;
+    if(entryPart===1) draft.part1SubmittedAt = submittedNow;
+    else { draft.part2SubmittedAt = submittedNow; draft.optionalAttempted = true; }
+    draft.updatedAt = submittedNow;
     draft.student = currentStudent;
     submitBtn.disabled = true;
     submitBtn.textContent = "Saving…";
@@ -1553,6 +1644,7 @@ function wireEntry(){
       return trySaveEntry(draft);
     }).then(function(result){
       lastSubmitted = draft;
+      lastSubmittedPart = entryPart;
       if(result.ok){
         goto("done");
         return;
@@ -1563,7 +1655,7 @@ function wireEntry(){
         // the student on the page with their draft intact and tell them
         // plainly what happened instead of a false "saved" message.
         submitBtn.disabled = false;
-        submitBtn.textContent = "Save today’s page";
+        submitBtn.textContent = "Submit Part "+entryPart;
         showToast("You've been signed out, so this page couldn't be saved. Please sign in again, then hit Save — your answers on this screen are still here.");
         return;
       }
@@ -1676,7 +1768,7 @@ function wireDesignStep(){
   if(finalLabel) finalLabel.addEventListener("input", function(){ draft.designFinalLabel = this.value; });
   var optFinalLabel = qs("#f-opt-design-final-label");
   if(optFinalLabel) optFinalLabel.addEventListener("input", function(){ draft.optionalDesignFinalLabel = this.value; });
-  var reflectionQs = REFLECTIONS_BY_WEEK[currentWeek];
+  var reflectionQs = reflectionsForWeek(currentWeek);
   if(reflectionQs) reflectionQs.forEach(function(r){
     var el = qs("#"+r.id);
     if(el) el.addEventListener("input", function(){ draft[r.field] = this.value; });
@@ -1747,9 +1839,13 @@ function wireMediaInputs(){
 }
 
 function wireDone(){
-  qs("#back-to-weeks").addEventListener("click", function(){ goto("weeks"); });
+  qs("#back-to-parts").addEventListener("click", function(){ goto("parts"); });
   qs("#download-entry").addEventListener("click", function(){ downloadEntry(lastSubmitted); });
   qs("#share-entry").addEventListener("click", function(){ shareEntry(lastSubmitted); });
+  var continuePart2 = qs("#continue-part-2");
+  if(continuePart2) continuePart2.addEventListener("click", function(){ entryPart=2; entryStep=0; draft.optionalAttempted=true; goto("entry"); });
+  var doneGallery = qs("#done-gallery");
+  if(doneGallery) doneGallery.addEventListener("click", function(){ galleryReturnView="parts"; goto("gallery"); });
 }
 
 function wireEducator(){
@@ -1986,13 +2082,13 @@ function shareEntry(entry){
 function exportCsv(){
   // snake_case column name for each reflections field, e.g. week2BatteryChange -> week2_battery_change
   var reflectionCols = REFLECTIONS_ALL_FIELDS.map(reflectionFieldToColumn);
-  var rows = [["student","week","submittedAt","confidence_before","confidence_after","learned","challenged","goal","debugging_worked","debugging_reasons","design_choices","final_design_label","final_design_uploaded"].concat(reflectionCols).concat(["optional_project_attempted"])];
+  var rows = [["student","week","submittedAt","part1_submitted_at","part2_submitted_at","confidence_before","confidence_after","learned","challenged","goal","debugging_worked","debugging_reasons","design_choices","final_design_label","final_design_uploaded"].concat(reflectionCols).concat(["optional_project_attempted"])];
   allEntries.forEach(function(e){
     var designList = Array.isArray(e.design) ? e.design : (e.design ? [e.design] : []);
     var designSummary = designList.map(function(x){ return x.type + (x.note ? (": "+x.note) : ""); }).filter(Boolean).join(" | ");
     var confAfter = e.confidenceAfter!=null ? e.confidenceAfter : e.confidence;
     rows.push([
-      e.student, e.week, e.submittedAt||"",
+      e.student, e.week, e.submittedAt||"", e.part1SubmittedAt||"", e.part2SubmittedAt||"",
       e.confidenceBefore||"", confAfter||"",
       e.learned||"", e.challenged||"", e.goal||"",
       (e.debugging||[]).map(function(a){return a.worked;}).join("|"),
@@ -2032,9 +2128,13 @@ function exportGallery(){
 
 /* ============================= SUPABASE DATA LAYER ============================= */
 function rowToEntry(row){
+  var hasPart1Status = Object.prototype.hasOwnProperty.call(row,"part1_submitted_at");
+  var hasPart2Status = Object.prototype.hasOwnProperty.call(row,"part2_submitted_at");
   var entry = {
     id: row.id, userId: row.user_id, student: row.student, week: row.week,
     submittedAt: row.submitted_at, updatedAt: row.updated_at||null,
+    part1SubmittedAt: hasPart1Status ? (row.part1_submitted_at||null) : (row.submitted_at||null),
+    part2SubmittedAt: hasPart2Status ? (row.part2_submitted_at||null) : (row.optional_attempted ? (row.submitted_at||null) : null),
     confidenceBefore: row.confidence_before, confidenceAfter: row.confidence_after,
     learned: row.learned||"", challenged: row.challenged||"", goal: row.goal||"",
     debugging: (row.debugging||[]).map(migrateMediaItem).map(migrateReasons), design: (row.design||[]).map(migrateMediaItem),
@@ -2112,7 +2212,7 @@ function checkBackendHealth(){
   // Derived from REFLECTIONS_ALL_FIELDS so this check automatically covers
   // every Reflections column that currently exists, including any added
   // after this function was written — no separate list to keep in sync.
-  var cols = REFLECTIONS_ALL_FIELDS.map(reflectionFieldToColumn).join(",");
+  var cols = ["part1_submitted_at","part2_submitted_at"].concat(REFLECTIONS_ALL_FIELDS.map(reflectionFieldToColumn)).join(",");
   sb.from("entries").select(cols).limit(1).then(function(res){
     backendHealthWarning = res.error
       ? "Your database is missing a column student pages need to save (\""+(res.error.message||"unknown error")+"\"). Submissions using it are failing to save right now and are stuck in a retry loop on students' own devices until this is fixed — open schema.sql's migration notes and run its \"alter table ... add column if not exists\" statements in the Supabase SQL Editor."
@@ -2154,6 +2254,7 @@ function buildRow(d){
     var row = {
       user_id: d.userId, student: d.student, week: d.week,
       submitted_at: d.submittedAt,
+      part1_submitted_at: d.part1SubmittedAt, part2_submitted_at: d.part2SubmittedAt,
       confidence_before: d.confidenceBefore, confidence_after: d.confidenceAfter,
       learned: d.learned, challenged: d.challenged, goal: d.goal,
       debugging: res[0], design: res[1],

@@ -33,6 +33,8 @@ create table if not exists entries (
   week int not null check (week between 1 and 10),
 
   submitted_at timestamptz,
+  part1_submitted_at timestamptz,
+  part2_submitted_at timestamptz,
   confidence_before int,
   confidence_after int,
   learned text default '',
@@ -62,6 +64,8 @@ create table if not exists entries (
   optional_design_final_photo text,                 -- legacy single-photo column, kept for old rows
   optional_design_final_media jsonb not null default '[]',
   optional_design_final_label text default '',
+  optional_reflection_learned text default '',
+  optional_reflection_next text default '',
 
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
@@ -293,6 +297,27 @@ create policy "photos_delete_own_folder" on storage.objects
 --   alter table entries add column if not exists week1_interaction text default '';
 --
 -- Safe to run even if the columns already exist.
+-- ============================================================
+
+-- ============================================================
+-- Migration (2026-10-12): split each weekly journal into independently
+-- submitted in-class (Part 1) and optional out-of-class (Part 2) work.
+-- Existing submitted_at is retained for compatibility and audit history.
+-- If this project was created before this migration, run once:
+--
+--   alter table entries add column if not exists part1_submitted_at timestamptz;
+--   alter table entries add column if not exists part2_submitted_at timestamptz;
+--   alter table entries add column if not exists optional_reflection_learned text default '';
+--   alter table entries add column if not exists optional_reflection_next text default '';
+--   update entries
+--     set part1_submitted_at = coalesce(part1_submitted_at, submitted_at),
+--         part2_submitted_at = case
+--           when optional_attempted then coalesce(part2_submitted_at, submitted_at)
+--           else part2_submitted_at
+--         end;
+--
+-- The backfill preserves the status of journals submitted in the original
+-- combined flow. Safe to run again: existing part timestamps win.
 -- ============================================================
 
 -- ============================================================
