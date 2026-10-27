@@ -374,13 +374,15 @@ var CURRICULUM = [
   {week:2, level:"Foundation", topic:"Series & Parallel Circuits", blurb:"Circuits are systems of components that work together to make something happen.", activity:"Building a DIY paper breadboard to compare how LEDs behave in series vs. parallel.", project:"Origami tree with three LEDs"},
   {week:3, level:"Foundation", topic:"Ohm's Law", blurb:"Circuits are systems of components that work together to make something happen.", activity:"Building a paper potentiometer to see how resistance changes current and voltage.", project:"Mood light dial"},
   {week:4, level:"Advanced", topic:"Transistor as a Switch", blurb:"Electronics process and respond to information through circuits.", activity:"Wiring a transistor switch that uses a photoresistor to trigger an LED.", project:"Night-light lantern"},
-  {week:5, level:"Advanced", topic:"Capacitor as Energy Storage", blurb:"Electronics process and respond to information through circuits.", activity:"Charging a capacitor and watching it briefly power a small motor.", project:"Spinning paper toy"},
-  {week:6, level:"Advanced", topic:"Logic Gates (AND, OR, NOT)", blurb:"Electronics process and respond to information through circuits.", activity:"Building AND, OR, and NOT circuits and testing how inputs control an LED.", project:"Interactive logic puzzle card"},
-  {week:7, level:"Advanced", topic:"Integrated Circuits 1", blurb:"Electronics process and respond to information through circuits.", activity:"Building a 3-stage LED control circuit with a 555 timer.", project:"Lightbox diorama"},
-  {week:8, level:"Advanced", topic:"Integrated Circuits 2", blurb:"Electronics process and respond to information through circuits.", activity:"Building an adjustable-speed flashing LED circuit with a 555 timer.", project:"Heartbeat badge"},
-  {week:9, level:"Application", topic:"More ICs & PCB Design Intro", blurb:"Microelectronics make everyday products smaller and more powerful.", activity:"Building a circuit around a student-chosen IC, like an audio amp or RGB LED driver.", project:"Student-selected project"},
-  {week:10, level:"Application", topic:"Final Review", blurb:"Microelectronics make everyday products smaller and more powerful.", activity:"Looking back on the whole workshop and sharing what you built.", project:null}
+  {week:6, level:"Advanced", topic:"Capacitor as Energy Storage", blurb:"Electronics process and respond to information through circuits.", activity:"Charging a capacitor and watching it briefly power a small motor.", project:"Sound activated light"},
+  {week:7, level:"Advanced", topic:"Logic Gates (AND, OR, NOT)", blurb:"Electronics process and respond to information through circuits.", activity:"Building AND, OR, and NOT circuits and testing how inputs control an LED.", project:"Interactive logic puzzle card"},
+  {week:8, level:"Advanced", topic:"Integrated Circuits 1", blurb:"Electronics process and respond to information through circuits.", activity:"Building a 3-stage LED control circuit with a 555 timer.", project:"Lightbox diorama"},
+  {week:9, level:"Advanced", topic:"Integrated Circuits 2", blurb:"Electronics process and respond to information through circuits.", activity:"Building an adjustable-speed flashing LED circuit with a 555 timer.", project:"Heartbeat badge"},
+  {week:10, level:"Application", topic:"More ICs & PCB Design Intro", blurb:"Microelectronics make everyday products smaller and more powerful.", activity:"Building a circuit around a student-chosen IC, like an audio amp or RGB LED driver.", project:"Student-selected project"},
+  {week:11, level:"Application", topic:"Final Review", blurb:"Microelectronics make everyday products smaller and more powerful.", activity:"Looking back on the whole workshop and sharing what you built.", project:null}
 ];
+var TOTAL_WEEKS = CURRICULUM.length;            // number of journal pages (10 — week 5 was an in-person review with no page)
+var LAST_WEEK = CURRICULUM[CURRICULUM.length-1].week; // 11
 var DEBUG_REASONS = ["Loose or broken tape connection","Wired backwards (polarity)","Short circuit (tape touching itself)","Battery dead or weak","A part not fully connected","Not sure yet"];
 var CONF_LABELS = ["Still sparking","Getting warmer","Current flowing","Wired in","Fully charged!"];
 
@@ -410,6 +412,10 @@ var REFLECTIONS_BY_WEEK = {
   ],
   4: [
     {field:"week4LedBrightness", id:"f-week4-led-brightness", short:"How the LED's brightness changes", label:"Explain how the LED changes brightness. What is happening inside the circuit?", placeholder:"e.g. The transistor acts like a switch, so how far I turn the dial changes how much current gets through to the LED"}
+  ],
+  6: [
+    {field:"capacitorLedBrightness", id:"f-capacitor-led-brightness", short:"How the LED's brightness changes", label:"Explain how the LED changes brightness. What is happening inside the circuit?", placeholder:"e.g. The capacitor stores energy, so the LED stays lit for a moment and then slowly fades"},
+    {field:"capacitorBatteryChange", id:"f-capacitor-battery-change", short:"Switching from a 9V to a 3V battery", label:"If you switch from a 9V battery to a 3V battery, what happens to the LED brightness? Why do you think that happens?", placeholder:"e.g. The LED is dimmer because there's less voltage pushing current through it"}
   ]
 };
 var PART2_GENERIC_REFLECTIONS = [
@@ -711,7 +717,7 @@ function renderWeeks(){
     '<button class="btn-gallery" id="gallery-link-top" type="button">'+ICON_GALLERY+' See the class gallery</button>' +
     unsyncedBanner +
     '<h2>Pick this week</h2>' +
-    '<p>'+doneCount+' of 10 in-class sections submitted.</p>' +
+    '<p>'+doneCount+' of '+TOTAL_WEEKS+' in-class sections submitted.</p>' +
     '<div class="week-grid">'+tiles+'</div>' +
     notesHtml +
     '<footer class="mini"><a href="#" id="edu-link2">For educators &rarr;</a></footer>'
@@ -736,7 +742,7 @@ function renderParts(){
     '</button>'
   );
   return (
-    '<div class="topbar"><button class="icon-btn" id="parts-back-weeks" type="button">&larr; Weeks</button><span class="hint" style="margin:0">Week '+currentWeek+' of 10</span></div>' +
+    '<div class="topbar"><button class="icon-btn" id="parts-back-weeks" type="button">&larr; Weeks</button><span class="hint" style="margin:0">Week '+currentWeek+'</span></div>' +
     traceSvg() +
     '<h2>'+esc(c.topic)+'</h2>' +
     '<p>Choose the section you’re working on. Part 2 stays available whether or not Part 1 has been submitted.</p>' +
@@ -961,7 +967,7 @@ function renderDocStep(d){
   if(currentWeek===1){
     goalField = '<label for="f-goal">What type of project do you hope to make or learn by the end of this semester?</label>' +
       '<textarea id="f-goal" placeholder="e.g. I want to build something that lights up when I open my sketchbook">'+esc(d.goal)+'</textarea>';
-  } else if(currentWeek===10){
+  } else if(currentWeek===LAST_WEEK){
     goalField = '<label for="f-goal">Looking back to week 1 &mdash; how have you grown?</label>' +
       '<textarea id="f-goal" placeholder="What can you do now that you couldn\'t before?">'+esc(d.goal)+'</textarea>';
   } else {
@@ -1186,7 +1192,7 @@ function renderDone(){
   var isPart1 = lastSubmittedPart===1;
   return (
     '<div class="streak">' +
-      '<div class="big">'+doneCount+' / 10</div>' +
+      '<div class="big">'+doneCount+' / '+TOTAL_WEEKS+'</div>' +
       '<div class="cap">pages filled in</div>' +
     '</div>' +
     traceSvg() +
