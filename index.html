@@ -375,7 +375,7 @@ var CURRICULUM = [
   {week:3, level:"Foundation", topic:"Ohm's Law", blurb:"Circuits are systems of components that work together to make something happen.", activity:"Building a paper potentiometer to see how resistance changes current and voltage.", project:"Mood light dial"},
   {week:4, level:"Advanced", topic:"Transistor as a Switch", blurb:"Electronics process and respond to information through circuits.", activity:"Wiring a transistor switch that uses a photoresistor to trigger an LED.", project:"Night-light lantern"},
   {week:6, level:"Advanced", topic:"Capacitor as Energy Storage", blurb:"Electronics process and respond to information through circuits.", activity:"Charging a capacitor and watching it briefly power a small motor.", project:"Sound activated light"},
-  {week:7, level:"Advanced", topic:"Logic Gates (AND, OR, NOT)", blurb:"Electronics process and respond to information through circuits.", activity:"Building AND, OR, and NOT circuits and testing how inputs control an LED.", project:"Interactive logic puzzle card"},
+  {week:7, level:"Advanced", topic:"Integrated Circuits", blurb:"Electronics process and respond to information through circuits.", activity:"Using a 555 timer chip to make LEDs take turns turning on and off.", project:"Paper light box diorama"},
   {week:8, level:"Advanced", topic:"Integrated Circuits 1", blurb:"Electronics process and respond to information through circuits.", activity:"Building a 3-stage LED control circuit with a 555 timer.", project:"Lightbox diorama"},
   {week:9, level:"Advanced", topic:"Integrated Circuits 2", blurb:"Electronics process and respond to information through circuits.", activity:"Building an adjustable-speed flashing LED circuit with a 555 timer.", project:"Heartbeat badge"},
   {week:10, level:"Application", topic:"More ICs & PCB Design Intro", blurb:"Microelectronics make everyday products smaller and more powerful.", activity:"Building a circuit around a student-chosen IC, like an audio amp or RGB LED driver.", project:"Student-selected project"},
@@ -416,6 +416,10 @@ var REFLECTIONS_BY_WEEK = {
   6: [
     {field:"capacitorLedBrightness", id:"f-capacitor-led-brightness", short:"How the LED's brightness changes", label:"Explain how the LED changes brightness. What is happening inside the circuit?", placeholder:"e.g. The capacitor stores energy, so the LED stays lit for a moment and then slowly fades"},
     {field:"capacitorBatteryChange", id:"f-capacitor-battery-change", short:"Switching from a 9V to a 3V battery", label:"If you switch from a 9V battery to a 3V battery, what happens to the LED brightness? Why do you think that happens?", placeholder:"e.g. The LED is dimmer because there's less voltage pushing current through it"}
+  ],
+  7: [
+    {field:"icLedsAlternating", id:"f-ic-leds-alternating", short:"How the LEDs alternate", label:"How are the LEDs alternating (taking turns turning on and off)? What do you think is happening inside the circuit? Describe the behavior as much as you can.", placeholder:"e.g. One LED blinks on while the other turns off, about once a second. I think the 555 timer keeps switching which LED gets the current"},
+    {field:"icDioramaScene", id:"f-ic-diorama-scene", short:"Diorama scene", label:"What is your diorama scene about?", placeholder:"e.g. A city skyline at night, with blinking lights in the windows"}
   ]
 };
 var PART2_GENERIC_REFLECTIONS = [
