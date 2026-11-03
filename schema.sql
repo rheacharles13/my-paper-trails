@@ -91,6 +91,8 @@ alter table entries add column if not exists week3_bigger_resistor text default 
 alter table entries add column if not exists week4_led_brightness text default '';     -- Transistor as a Switch (week 4): how LED brightness changes
 alter table entries add column if not exists capacitor_led_brightness text default ''; -- Capacitor (week 6): how LED brightness changes
 alter table entries add column if not exists capacitor_battery_change text default ''; -- Capacitor (week 6): 9V vs. 3V battery
+alter table entries add column if not exists ic_leds_alternating text default '';      -- Integrated Circuits (weeks 7-8): how the LEDs alternate
+alter table entries add column if not exists ic_diorama_scene text default '';         -- Integrated Circuits (weeks 7-8): what the diorama scene is about
 
 -- entries: optional project
 alter table entries add column if not exists optional_attempted boolean not null default false;

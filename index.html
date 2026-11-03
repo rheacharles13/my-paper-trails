@@ -376,8 +376,8 @@ var CURRICULUM = [
   {week:4, level:"Advanced", topic:"Transistor as a Switch", blurb:"Electronics process and respond to information through circuits.", activity:"Wiring a transistor switch that uses a photoresistor to trigger an LED.", project:"Night-light lantern"},
   {week:6, level:"Advanced", topic:"Capacitor as Energy Storage", blurb:"Electronics process and respond to information through circuits.", activity:"Charging a capacitor and watching it briefly power a small motor.", project:"Sound activated light"},
   {week:7, level:"Advanced", topic:"Integrated Circuits", blurb:"Electronics process and respond to information through circuits.", activity:"Using a 555 timer chip to make LEDs take turns turning on and off.", project:"Paper light box diorama"},
-  {week:8, level:"Advanced", topic:"Integrated Circuits 1", blurb:"Electronics process and respond to information through circuits.", activity:"Building a 3-stage LED control circuit with a 555 timer.", project:"Lightbox diorama"},
-  {week:9, level:"Advanced", topic:"Integrated Circuits 2", blurb:"Electronics process and respond to information through circuits.", activity:"Building an adjustable-speed flashing LED circuit with a 555 timer.", project:"Heartbeat badge"},
+  {week:8, level:"Advanced", topic:"Integrated Circuits", blurb:"Electronics process and respond to information through circuits.", activity:"Continuing with the 555 timer and capacitors to make LEDs take turns turning on and off.", project:"Paper light box diorama"},
+  {week:9, level:"Advanced", topic:"PCB Design", blurb:"Electronics process and respond to information through circuits.", activity:"Designing a printed circuit board (PCB), cutting it on a CNC machine, and soldering components onto it.", project:"Heartbeat badge"},
   {week:10, level:"Application", topic:"More ICs & PCB Design Intro", blurb:"Microelectronics make everyday products smaller and more powerful.", activity:"Building a circuit around a student-chosen IC, like an audio amp or RGB LED driver.", project:"Student-selected project"},
   {week:11, level:"Application", topic:"Final Review", blurb:"Microelectronics make everyday products smaller and more powerful.", activity:"Looking back on the whole workshop and sharing what you built.", project:null}
 ];
@@ -422,13 +422,17 @@ var REFLECTIONS_BY_WEEK = {
     {field:"icDioramaScene", id:"f-ic-diorama-scene", short:"Diorama scene", label:"What is your diorama scene about?", placeholder:"e.g. A city skyline at night, with blinking lights in the windows"}
   ]
 };
+// Weeks 7-8 are one Integrated Circuits unit (one handout), so week 8 asks the
+// same questions. Answers are saved per week (one row per week), so week 8
+// reuses week 7's fields/columns -- no new database columns needed.
+REFLECTIONS_BY_WEEK[8] = REFLECTIONS_BY_WEEK[7];
 var PART2_GENERIC_REFLECTIONS = [
   {field:"optionalReflectionLearned", id:"f-optional-reflection-learned", short:"What changed through iteration", label:"What changed in your project as you tested and iterated?", placeholder:"e.g. I moved the copper tape so the connection would stay closed"},
   {field:"optionalReflectionNext", id:"f-optional-reflection-next", short:"What you would try next", label:"If you had more time, what would you try or improve next?", placeholder:"e.g. I would add another LED and make the switch easier to press"}
 ];
 function reflectionsForWeek(week){ return REFLECTIONS_BY_WEEK[week] || PART2_GENERIC_REFLECTIONS; }
 var REFLECTIONS_ALL_FIELDS = Object.keys(REFLECTIONS_BY_WEEK).reduce(function(acc, w){
-  return acc.concat(REFLECTIONS_BY_WEEK[w].map(function(r){ return r.field; }));
+  return acc.concat(REFLECTIONS_BY_WEEK[w].map(function(r){ return r.field; }).filter(function(f){ return acc.indexOf(f)===-1; }));
 }, []).concat(PART2_GENERIC_REFLECTIONS.map(function(r){ return r.field; }));
 /* Shared camelCase draft-field <-> snake_case Postgres-column conversion
    for every Reflections field, so adding a week's questions to
